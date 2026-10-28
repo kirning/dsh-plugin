@@ -1,0 +1,50 @@
+{
+  "name": "dsh-easytier",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "description": "EasyTier network manager for the dsh web GUI: auto-discovers the EasyTier instance running on this machine by process and RPC portal, lists every terminal in the current network, manages them through EasyTier's own port forwarding, whitelist, temporary credentials, connector, route and service features, and shows/edits the instance config file with validation and automatic backup. Ships a sidebar panel plus an agent tool (easytier). Zero runtime dependencies.",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "easytier",
+    "vpn",
+    "mesh",
+    "bundle-plugin"
+  ],
+  "license": "Apache-2.0"
+}

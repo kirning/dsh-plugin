@@ -1,0 +1,51 @@
+{
+  "name": "dsh-token-calendar",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Token consumption calendar for the dsh web GUI, built on the local magpie gateway statistics: reads magpie's request ledger, prices every request against the models.dev catalog, and renders a month calendar of tokens and spend. Ships a sidebar panel plus an agent tool (token_calendar). Zero runtime dependencies.",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "magpie",
+    "tokens",
+    "usage",
+    "calendar",
+    "bundle-plugin"
+  ],
+  "license": "Apache-2.0"
+}

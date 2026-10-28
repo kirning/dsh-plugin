@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "EasyTier Network Manager",
+    "description": "Auto-discovers the EasyTier instance running on this machine (by process and RPC portal), lists every terminal in the current network, and manages them through EasyTier's own port forwarding, whitelist, temporary credentials, and connector features."
+  }
+}

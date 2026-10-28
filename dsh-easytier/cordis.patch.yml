@@ -1,0 +1,8 @@
+# dsh-easytier bundle patch: inserts the dual-face plugin row into the web
+# profile roster. The node half (exports ".") runs in the host process
+# (EasyTier discovery, /api/dsh-easytier routes, agent tool), and the
+# dsh.client declaration in package.json makes the browser half
+# (exports "./client") load in the web GUI as the sidebar "EasyTier" panel.
+- insert:
+    - id: easytier
+      name: 'dsh-easytier'

@@ -1,0 +1,12 @@
+# dsh-token-calendar bundle patch: inserts the dual-face plugin row into the
+# web profile roster. The node half (exports ".") runs in the host process
+# (magpie statistics reader, /api/dsh-token-calendar routes, agent tool), and
+# the dsh.client declaration in package.json makes the browser half
+# (exports "./client") load in the web GUI as the sidebar "Token 日历" panel.
+- insert:
+    - id: token-calendar
+      name: 'dsh-token-calendar'
+      config:
+        enabled: true
+        announceToAgent: true
+        defaultCurrency: 'cny'

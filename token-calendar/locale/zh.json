@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Token 消耗日历",
+    "description": "把本机 magpie 网关的统计做成消耗日历：按天显示 token 用量与花费，金额按 models.dev 价格表折算并用 magpie 自带的 USD/CNY 汇率换算。直接读取 magpie 的请求流水文件，magpie 是否在运行都不影响。"
+  }
+}

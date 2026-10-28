@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "EasyTier 组网管理",
+    "description": "自动发现本机运行的 EasyTier（按进程 + RPC 端口），查看当前网络的终端列表，并用 EasyTier 自身的端口转发、白名单、临时凭证、连接管理等能力管理这些终端。"
+  }
+}

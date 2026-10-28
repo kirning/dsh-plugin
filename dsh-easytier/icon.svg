@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="EasyTier network manager">
+  <defs>
+    <linearGradient id="etBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1f6feb"/>
+      <stop offset="1" stop-color="#3fb950"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#etBg)"/>
+  <!-- mesh edges -->
+  <g stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.85">
+    <line x1="32" y1="18" x2="17" y2="36"/>
+    <line x1="32" y1="18" x2="47" y2="36"/>
+    <line x1="17" y1="36" x2="32" y2="49"/>
+    <line x1="47" y1="36" x2="32" y2="49"/>
+    <line x1="17" y1="36" x2="47" y2="36"/>
+  </g>
+  <!-- terminal nodes -->
+  <g fill="#ffffff">
+    <circle cx="32" cy="18" r="6"/>
+    <circle cx="17" cy="36" r="5"/>
+    <circle cx="47" cy="36" r="5"/>
+    <circle cx="32" cy="49" r="5"/>
+  </g>
+  <g fill="#1f6feb">
+    <circle cx="32" cy="18" r="2.4"/>
+    <circle cx="17" cy="36" r="2"/>
+    <circle cx="47" cy="36" r="2"/>
+    <circle cx="32" cy="49" r="2"/>
+  </g>
+</svg>

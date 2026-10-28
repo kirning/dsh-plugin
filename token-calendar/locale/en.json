@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Token Consumption Calendar",
+    "description": "Turns the local magpie gateway statistics into a calendar of token consumption: every day of a month shows its tokens and its spend, priced against the models.dev catalog and converted with magpie's own USD/CNY rate. Reads magpie's request ledger from disk, so it works whether or not magpie is running."
+  }
+}
