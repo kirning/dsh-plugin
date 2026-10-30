@@ -24,3 +24,13 @@ desktop.ini
 .idea/
 .vscode/
 *.swp
+
+# Packaged tarballs (npm pack output)
+*.tgz
+
+# Local npm cache left by standalone plugin builds
+.npm-cache/
+
+# Local scratch scripts and machine-only agent notes (not published)
+/temp/
+/AGENTS.md

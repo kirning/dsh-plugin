@@ -1,0 +1,6 @@
+# dsh-plugin-continue bundle patch: mount its own row into the profile tree.
+# The row name equals this package name, so the client-modules scan discovers
+# the `dsh.client` browser half and the Loader mounts the (empty) host half.
+- insert:
+    - id: ui-continue
+      name: 'dsh-plugin-continue'

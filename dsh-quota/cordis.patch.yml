@@ -1,0 +1,6 @@
+# dsh-plugin-company-quota bundle patch：把本插件的行挂进 profile 组合树。
+# 行名等于包名，客户端模块扫描据此发现 dsh.client 浏览器半，
+# 宿主半则由 Loader 挂载（注册 /api/company-quota 路由）。
+- insert:
+    - id: company-quota
+      name: 'dsh-plugin-company-quota'
