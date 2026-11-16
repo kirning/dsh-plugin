@@ -83,6 +83,102 @@ async function dailySpend(nowMs) {
   }
   return rows;
 }
+async function firstSnapshotDate() {
+  await ensureLoaded();
+  const days = store;
+  if (days === void 0) return void 0;
+  let first;
+  for (const date of days.keys()) if (first === void 0 || date < first) first = date;
+  return first;
+}
+
+// src/legacy.ts
+import { readFile as readFile2, stat } from "node:fs/promises";
+import { homedir as homedir2 } from "node:os";
+import { join as join2 } from "node:path";
+var PRICES = {
+  "glm-5.3-flash-aliyun": [0.4, 1.4, 0.12],
+  "qwen3.8-flash-aliyun": [0.8, 2.7, 0.1],
+  "qwen3.7-plus-aliyun": [1.28, 5.12, 0.26],
+  "deepseek-v4-flash-deepseek": [2, 8, 0.04],
+  "deepseek-v4-flash-vision-exp-deepseek": [2, 8, 0.04],
+  "glm-5.2-aliyun": [4, 14, 1],
+  "qwen3.7-max-aliyun": [6, 18, 2],
+  "deepseek-v4-pro-deepseek": [9, 27, 0.3],
+  "qwen3.8-max-aliyun": [12, 36, 1.5],
+  "kimi-k3-aliyun": [20, 100, 2]
+};
+var cache;
+function ledgerPath() {
+  return join2(process.env.DSH_HOME ?? join2(homedir2(), ".dsh"), "dsh-usage", "usage-ledger.json");
+}
+function modelCost(model, totals) {
+  const key = model.slice(model.lastIndexOf("/") + 1);
+  const price = PRICES[key];
+  if (price === void 0) return 0;
+  const input = totals.inputTokens ?? 0;
+  const output = totals.outputTokens ?? 0;
+  const cached = totals.cacheReadTokens ?? 0;
+  return (input * price[0] + output * price[1] + cached * price[2]) / 1e6;
+}
+function round6(value) {
+  return Math.round(value * 1e6) / 1e6;
+}
+function foldLedger(raw, routeIds) {
+  const days = /* @__PURE__ */ new Map();
+  let doc;
+  try {
+    doc = JSON.parse(raw);
+  } catch {
+    return days;
+  }
+  for (const [date, buckets] of Object.entries(doc.days ?? {})) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || buckets === null || typeof buckets !== "object") continue;
+    let cost = 0;
+    for (const id of routeIds) {
+      const models = buckets[id];
+      if (models === void 0 || models === null || typeof models !== "object") continue;
+      for (const [model, totals] of Object.entries(models)) {
+        if (totals === null || typeof totals !== "object") continue;
+        cost += modelCost(model, totals);
+      }
+    }
+    days.set(date, round6(cost));
+  }
+  return days;
+}
+async function loadLedger(routeIds) {
+  const path = ledgerPath();
+  let fingerprint;
+  try {
+    const info = await stat(path);
+    fingerprint = `${info.size}:${info.mtimeMs}`;
+  } catch {
+    return /* @__PURE__ */ new Map();
+  }
+  const cached = cache;
+  if (cached !== void 0 && cached.key === fingerprint) {
+    return cached.days;
+  }
+  try {
+    const raw = await readFile2(path, "utf8");
+    const days = foldLedger(raw, routeIds);
+    cache = { key: fingerprint, days };
+    return days;
+  } catch {
+    return /* @__PURE__ */ new Map();
+  }
+}
+async function legacyDaily(routeIds, beforeDate) {
+  const days = await loadLedger(routeIds);
+  const rows = [];
+  for (const [date, cost] of days) {
+    if (date >= beforeDate) continue;
+    rows.push({ date, cost });
+  }
+  rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  return rows;
+}
 
 // src/index.ts
 var name = "company-quota";
@@ -193,6 +289,11 @@ function resolveCompanyRoutes(ctx) {
   const resolved = routes.length > 0 ? routes : [{ id: PROVIDER_ID, apiKeyEnv: API_KEY_REF }];
   routesCache = { at: Date.now(), routes: resolved };
   return resolved;
+}
+function companyRouteIds(routes) {
+  const ids = /* @__PURE__ */ new Set([PROVIDER_ID]);
+  for (const route of routes) ids.add(route.id);
+  return ids;
 }
 function quotaUrlFor(routes) {
   const baseURL = routes[0]?.baseURL;
@@ -306,7 +407,13 @@ async function overview(ctx, force) {
   const current = quotaCache;
   const quota = current?.quota;
   const error = current?.error;
-  const daily = await dailySpend(now);
+  const balanceRows = await dailySpend(now);
+  const firstBalance = await firstSnapshotDate();
+  const legacyRows = await legacyDaily(companyRouteIds(routes), firstBalance ?? localDateKey(now));
+  const byDate = /* @__PURE__ */ new Map();
+  for (const row of legacyRows) byDate.set(row.date, row);
+  for (const row of balanceRows) byDate.set(row.date, row);
+  const daily = [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   const todayKey = localDateKey(now);
   const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 };
   const forecast = quota === void 0 ? void 0 : forecastFrom(quota, now);

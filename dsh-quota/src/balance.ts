@@ -138,6 +138,19 @@ export async function dailySpend(nowMs: number): Promise<DailyRow[]> {
   return rows
 }
 
+/**
+ * 最早一笔余额快照的日期（这一天及以后由余额差负责，之前的日子交给历史台账）。
+ * @returns 日期键；一笔快照都没有时 undefined。
+ */
+export async function firstSnapshotDate(): Promise<string | undefined> {
+  await ensureLoaded()
+  const days = store
+  if (days === undefined) return undefined
+  let first: string | undefined
+  for (const date of days.keys()) if (first === undefined || date < first) first = date
+  return first
+}
+
 /** 丢掉内存里的快照表（测试/诊断用）。 */
 export function resetBalanceCache(): void {
   store = undefined

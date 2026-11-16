@@ -20,12 +20,15 @@
  *     cliPath: 'C:\ProgramData\easytier\easytier-cli.exe'  # optional override
  *     rpcPortal: '127.0.0.1:15888'                          # optional override
  *     configFile: 'C:\ProgramData\easytier\config.toml'     # optional override
+ *     installDir: 'C:\Users\me\AppData\Local\Programs\easytier'  # optional install target
  * ```
  *
  * @module dsh-easytier
  */
 
 import { EasytierService } from './lib/easytier.js'
+import { EasyTierInstaller } from './lib/install.js'
+import { EasyTierRunner } from './lib/runner.js'
 import { makeRoute } from './lib/routes.js'
 import { easytierTool } from './lib/tools.js'
 
@@ -48,6 +51,9 @@ export const EASYTIER_GUIDANCE =
   'action=connector_add/remove/list 管理本节点的出站对端连接；action=service 启停 easytier 系统服务；action=cli 透传任意 easytier-cli 子命令。' +
   '配置：面板「配置」标签可直接查看并编辑该实例的配置文件（含原文，保存前用 easytier-core --check-config 校验、自动备份为 <路径>.bak.<时间戳>，保存后需重启服务生效）；' +
   'agent 用 action=config_get 读取（输出中 network_secret 会脱敏）、action=config_set 写入（会拒绝含 *** 的脱敏文本）。' +
+  '若本机尚未安装 EasyTier，面板会显示「初始化」入口：从 GitHub Releases 下载最新稳定版并解压到用户目录（无需管理员权限），进度与日志实时显示，只装二进制、不注册服务也不自动组网。' +
+  '已安装但没有节点运行时，面板会给出「启动节点」卡片：填网络名称（可加网络密钥/对端/虚拟 IP）即可由面板拉起一个 easytier-core 并进入终端列表，' +
+  '默认关闭虚拟网卡（--no-tun，无需管理员权限，只做中继与发现），日志写在 $DSH_HOME/dsh-easytier/core.log，停止按钮会结束该进程树。' +
   '限制：只管理本机运行的实例（远端 Windows 主机请用 dsh-winrm，SSH 主机用 dsh-ssh）；' +
   '启停系统服务需要管理员权限，普通会话会返回 Access denied；凭证密钥属敏感信息，勿写入日志或提交仓库；' +
   '修改端口转发/白名单/连接会影响真实网络连通性，操作前先确认。' +
@@ -62,7 +68,7 @@ const MOUNTED = Symbol.for('dsh-easytier.mounted')
 /**
  * Register the service, routes, tool and prompt section.
  * @param {import('@deepseek-ai/cordis').Context} ctx - host plugin context.
- * @param {{enabled?: boolean, announceToAgent?: boolean, cliPath?: string, rpcPortal?: string, configFile?: string, discoveryCacheMs?: number}} [config] - row config.
+ * @param {{enabled?: boolean, announceToAgent?: boolean, cliPath?: string, rpcPortal?: string, configFile?: string, discoveryCacheMs?: number, installDir?: string}} [config] - row config.
  */
 export function apply(ctx, config) {
   const registry = globalThis
@@ -84,6 +90,16 @@ export function apply(ctx, config) {
   const disposers = []
   if (resolved.enabled === false) return
 
+  // Provisioning is separate from the domain service: it only touches the file
+  // system and the network, and it is what the panel offers when nothing is
+  // installed yet.
+  const installer = new EasyTierInstaller({
+    ...(typeof resolved.installDir === 'string' ? { installDir: resolved.installDir } : {}),
+  })
+  // The runner owns a core process the panel starts itself, so a fresh machine
+  // can reach a terminal list without the EasyTier GUI.
+  const runner = new EasyTierRunner()
+
   if (resolved.announceToAgent !== false) {
     disposers.push(ctx.systemPrompt.section({
       name: 'plugin:dsh-easytier',
@@ -92,10 +108,11 @@ export function apply(ctx, config) {
     }))
   }
 
-  disposers.push(ctx.webServer.register(makeRoute({ service })))
+  disposers.push(ctx.webServer.register(makeRoute({ service, installer, runner })))
   disposers.push(ctx.tools.register(easytierTool(service)))
 
   ctx.effect(() => () => {
+    installer.dispose()
     for (const dispose of disposers) {
       try {
         dispose()

@@ -4,6 +4,8 @@
  * 把两处事实合成一个 overview 文档，供浏览器半的设置分区渲染：
  *  - 逐日消费：额度接口自己的余额做差（见 ./balance.ts）—— 某天花了多少 =
  *    上一次余额 − 当天余额，不看 token、不查价目表、不扫会话日志；
+ *    **余额快照开始之前的历史**沿用旧的用量台账折算（见 ./legacy.ts，只读不改），
+ *    于是切换口径不会把过去的日子抹掉；
  *  - 当月额度：公司 token-kanban 的 member-quota 接口，Bearer = 公司路由的
  *    apiKeyEnv 凭据，经宿主 credentials 服务解析 —— API key 永不进入浏览器。
  *
@@ -31,7 +33,8 @@ import {
   type OverviewDocument,
   type QuotaFact,
 } from './shared.ts'
-import { dailySpend, recordBalance } from './balance.ts'
+import { dailySpend, firstSnapshotDate, recordBalance } from './balance.ts'
+import { legacyDaily } from './legacy.ts'
 
 export const name = 'company-quota'
 export const inject = ['webServer']
@@ -210,6 +213,18 @@ function resolveCompanyRoutes(ctx: Context): CompanyRoute[] {
   return resolved
 }
 
+/**
+ * 台账里算作「公司消费」的路由 id 集合：识别出的公司路由 + 历史桶名
+ * （`midea`；路由改名前的存量数据都记在这个桶里）。
+ * @param routes - 识别出的公司路由。
+ * @returns 路由 id 集合。
+ */
+function companyRouteIds(routes: CompanyRoute[]): Set<string> {
+  const ids = new Set<string>([PROVIDER_ID])
+  for (const route of routes) ids.add(route.id)
+  return ids
+}
+
 /** 额度接口地址：优先用识别出的公司 baseURL 的 origin，识别不出用兜底地址。 */
 function quotaUrlFor(routes: CompanyRoute[]): string {
   const baseURL = routes[0]?.baseURL
@@ -348,7 +363,15 @@ async function overview(ctx: Context, force: boolean): Promise<OverviewDocument>
   const quota = current?.quota
   const error = current?.error
 
-  const daily = await dailySpend(now)
+  // 逐日消费 = 余额快照之前的旧台账历史 + 之后的余额差（同一天以余额差为准）。
+  // 旧台账是只读存量，切换口径不会抹掉过去的日子。
+  const balanceRows = await dailySpend(now)
+  const firstBalance = await firstSnapshotDate()
+  const legacyRows = await legacyDaily(companyRouteIds(routes), firstBalance ?? localDateKey(now))
+  const byDate = new Map<string, DailyRow>()
+  for (const row of legacyRows) byDate.set(row.date, row)
+  for (const row of balanceRows) byDate.set(row.date, row)
+  const daily = [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const todayKey = localDateKey(now)
   const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 }
 

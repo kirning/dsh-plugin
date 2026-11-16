@@ -91,11 +91,14 @@ async function readJsonBody(request) {
 
 /**
  * Build the prefix route.
- * @param {{service: import('./easytier.js').EasytierService}} deps - the domain service.
+ * @param {{service: import('./easytier.js').EasytierService,
+ *   installer?: import('./install.js').EasyTierInstaller,
+ *   runner?: import('./runner.js').EasyTierRunner}} deps - the domain service, the provisioner,
+ *   and the local node runner.
  * @returns {import('node:http').RequestListener & object} a `WebRoute`.
  */
 export function makeRoute(deps) {
-  const { service } = deps
+  const { service, installer, runner } = deps
 
   /** Dispatch one request. */
   const handler = async (request, response) => {
@@ -118,11 +121,42 @@ export function makeRoute(deps) {
     try {
       // ------------------------------------------------------------ snapshot
       if (route === '/snapshot' && method === 'GET') {
-        writeJson(response, 200, await service.snapshot({ force: query.get('force') === '1' }))
+        const snapshot = await service.snapshot({ force: query.get('force') === '1' })
+        writeJson(response, 200, { ...snapshot, install: await installStatus(installer) })
         return
       }
       if (route === '/refresh' && method === 'POST') {
         writeJson(response, 200, await service.snapshot({ force: true }))
+        return
+      }
+
+      // ------------------------------------------------------------- install
+      // Provisioning lives beside the read surface: the panel offers it only when
+      // discovery finds nothing, and polls it while a job runs.
+      if (route === '/install') {
+        if (installer === undefined) {
+          writeJson(response, 503, { error: 'installer unavailable', code: 'installer_unavailable' })
+          return
+        }
+        if (method === 'GET') {
+          writeJson(response, 200, await installStatus(installer))
+          return
+        }
+        if (method === 'POST') {
+          // `proxy` is `host:port`, optionally prefixed with socks5:// or http://.
+          // `dir` points at an EasyTier the user already has: it is validated and
+          // adopted instead of downloading anything.
+          const body = await readJsonBody(request)
+          writeJson(response, 200, {
+            job: installer.start({ proxy: body?.proxy ?? null, dir: body?.dir ?? null }),
+          })
+          return
+        }
+        if (method === 'DELETE') {
+          writeJson(response, 200, { job: installer.cancel() })
+          return
+        }
+        writeJson(response, 405, { error: `method not allowed: ${method}` })
         return
       }
 
@@ -259,6 +293,59 @@ export function makeRoute(deps) {
         return
       }
 
+      // ----------------------------------------------------------------- node
+      // The panel can bring a network up on its own: one detached core, one log
+      // file. `POST` needs the core path from discovery, so nothing can be
+      // started from a build where EasyTier is not installed.
+      if (route === '/node') {
+        if (runner === undefined) {
+          writeJson(response, 503, { error: 'runner unavailable', code: 'runner_unavailable' })
+          return
+        }
+        if (method === 'GET') {
+          writeJson(response, 200, await runner.status())
+          return
+        }
+        if (method === 'POST') {
+          const body = await readJsonBody(request)
+          if (body === undefined) {
+            writeJson(response, 400, { error: 'invalid JSON body' })
+            return
+          }
+          // The executable always comes from detection: a request may choose the
+          // network, never which file to run.
+          const detection = installer === undefined ? null : await installer.detect({ force: true })
+          const corePath = detection === null ? null : detection.corePath
+          if (typeof corePath !== 'string' || corePath === '') {
+            const error = new Error('easytier-core was not found; initialize EasyTier first.')
+            error.code = 'not_installed'
+            throw error
+          }
+          const status = await runner.start({
+            corePath,
+            networkName: body.networkName,
+            networkSecret: body.networkSecret,
+            peers: body.peers,
+            ipv4: body.ipv4,
+            noTun: body.noTun,
+            rpcPortal: body.rpcPortal,
+            hostname: body.hostname,
+            instanceName: body.instanceName,
+          })
+          service.invalidate()
+          writeJson(response, 200, status)
+          return
+        }
+        if (method === 'DELETE') {
+          const result = await runner.stop()
+          service.invalidate()
+          writeJson(response, 200, { ...result, node: await runner.status() })
+          return
+        }
+        writeJson(response, 405, { error: `method not allowed: ${method}` })
+        return
+      }
+
       // ---------------------------------------------------------------- config
       if (route === '/config') {
         if (method === 'GET') {
@@ -306,4 +393,10 @@ function instanceIdOf(body, queryInstance) {
   const value = body.instanceId ?? body.instance
   if (typeof value === 'string' && value !== '') return value
   return queryInstance
+}
+
+/** Detection result plus the current install job, or null without an installer. */
+async function installStatus(installer) {
+  if (installer === undefined || installer === null) return null
+  return installer.status()
 }

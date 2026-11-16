@@ -73,6 +73,61 @@ EasyTier 组网管理插件（DSH Web GUI 侧边栏「EasyTier」面板 + `easyt
 
 因此「服务方式」「GUI 方式」「手工命令方式」启动的实例都能被发现；同时运行多个实例时，面板顶部会出现实例选择器。
 
+### 4. 本机没装 EasyTier 时一键初始化
+
+当发现逻辑在本机找不到任何 EasyTier 可执行文件时，面板不再只是一句「未发现实例」，而是给出一张初始化卡片：显示目标安装目录，并提供「初始化」按钮。
+
+点击后插件自己做这几件事（面板上实时显示阶段、进度条和逐行日志）：
+
+1. **解析版本**：请求 GitHub Releases 的 `latest`，只接受稳定版（`prerelease: false`）；如果最新的是预发布版，明确拒绝而不是降级安装。`latest` 接口异常时回退为列出发布列表挑第一个稳定版。
+2. **选资产**：按 `平台/架构 → 发布资产三元组` 映射挑 `easytier-<triple>-v<版本>.zip`（Windows x64 对应 `windows-x86_64`，macOS ARM 对应 `macos-aarch64`，Linux 对应 `linux-x86_64` 等）；没有对应资产的架构会直接报错并提示去发布页手动下载。
+3. **下载**：流式写盘，按 `content-length` 报百分比与已下载字节；支持取消（下个数据块边界退出并清理临时目录）。
+4. **校验**：比对落盘大小与发布信息里的 `size`，不一致视为传输截断。
+5. **解压**：用系统自带工具，依次尝试（Windows：`tar` → PowerShell `Expand-Archive` → `unzip`；macOS：`tar` → `unzip`；Linux：`unzip` → `tar`），全部失败才报错。
+6. **安装**：把归档里的 `easytier-core` / `easytier-cli` / `easytier-gui` / `easytier-web` 复制到用户目录（Windows `%LOCALAPPDATA%\Programs\easytier`，其他平台 `~/.local/bin`），POSIX 下补 `0755`，然后跑一次 `--version` 确认可用。
+
+#### 经代理下载
+
+初始化卡片上有一个可选的代理输入框，**只需要填 `IP:端口`**（例如 `127.0.0.1:7890`）：
+
+- 先按 **SOCKS5** 试（无认证），不通再自动降级到 **HTTP CONNECT**；降级会在日志里留一行说明，成功后会显示「已通过 xxx 下载（SOCKS5/HTTP）」。
+- 想钉死协议就加前缀：`socks5://1.2.3.4:1080`、`http://proxy.local:3128`。带账号密码的 URL 暂不支持（两种协议都没实现认证）。
+- 走代理时**版本查询（`api.github.com`）和下载都走同一条隧道**，方向键是本机 → 代理 → GitHub，所以内网里只有代理能出网时也能装。
+- 没端口会直接报错（`needs a port, for example 127.0.0.1:7890`），留空则直连。
+- 输入框内容记在浏览器 `localStorage`（`dsh-easytier.installProxy`），刷新后不用重填。
+
+#### 使用已有的 EasyTier 目录
+
+如果这台机器上已经有一份 EasyTier（绿色解压版、别人装好拷过来的、或者装在非默认目录），不用再下一次 31 MB：初始化卡片上还有一个 **EasyTier 目录** 输入框。
+
+- 右侧「浏览…」按钮调的是 **DSH 自己的目录选择器**（`remote.directoryPicker`，本机 Windows/macOS 上就是系统原生的选择框），不需要手打路径；选完路径会写进输入框，也可以直接手输。
+- 点「初始化」时，如果框里有目录，插件**先校验再采用**：目录里必须能找到 `easytier-core` 和 `easytier-cli`（`easytier-gui` / `easytier-web` 可选），搜索会向下探几层，所以指向解压出来的外层文件夹、或者里面那层 `easytier-windows-x86_64\`，都能认出来。
+- 校验通过就**把它登记为本机的 EasyTier 目录**（`~/.dsh/dsh-easytier/install.json`），不复制、不下载；之后每次启动和「刷新」都从那里找。实际采用的是**二进制所在的那一层目录**——发现逻辑只在目录里直接看文件名，不会递归。
+- 校验失败会在日志里点名缺哪个文件（`dir_not_found` / `invalid_directory`），不会退回成下载。
+- Windows 上还会检查 `Packet.dll`：它是 `easytier-core.exe` 的**加载期依赖**，缺了进程会直接以 `0xC0000135`（STATUS_DLL_NOT_FOUND）退出、连日志都写不出来。所以只把 `.exe` 拷过来是不行的，报错里会明确点出这个文件（`missing_runtime`）。
+- 目录在浏览器 `localStorage`（`dsh-easytier.installDir`）里留一份，刷新后不用重填。
+
+#### 初始化完成后直接进控制面板，并且能直接启动节点
+
+无论是下载安装完、还是采用已有目录校验通过，面板都会**自己切到控制视图**——即使此刻还没有任何节点在跑。这时界面是「启动 EasyTier 节点」卡片，而不是一句「去别处启动吧」：
+
+1. **网络名称**（必填）：其它终端用同一个网络名（和同样的密钥）就能互相看到；
+2. **网络密钥**（可选，密码框，不落 `localStorage`）；
+3. **对端地址**（可选）：默认 `tcp://public.easytier.cn:11010`，多个用逗号/空格分开；
+4. **虚拟 IP**（可选）与**「不创建虚拟网卡」**（默认勾选）。
+
+点「启动节点」后，宿主直接拉起一个 `easytier-core` 进程（`--network-name … --network-secret … --peers … --no-tun true --rpc-portal 127.0.0.1:15888`），面板每秒轮询；等 RPC 门户起来、发现逻辑认到实例，界面自动变成正常的终端列表。运行中会显示 pid、调试日志尾部（`~/.dsh/dsh-easytier/core.log` 的最后十几行）和「停止节点」按钮（`taskkill /T /F` 结束整个进程树）。
+
+设计取舍：
+
+- **默认 `--no-tun`**：创建虚拟网卡在 Windows 上通常要管理员权限（还要 WinTun 驱动），而「看到终端」只需要入网。想让本机成为可被访问的节点时，取消勾选「不创建虚拟网卡」并填虚拟 IP 即可（此时需要权限）。
+- **进程由插件自己记账**：pid 与参数写进 `~/.dsh/dsh-easytier/node.json`，宿主重启后仍能停掉它；记录里的进程已经不存在时，状态会显示「no longer running」并附日志尾部，而不是假装还在。
+- **只装二进制，不注册服务、不自动加入网络**：组网参数由人决定，插件只负责把进程拉起来并看住它。
+- **安装时复制整个压缩包内容**：除了三个 `.exe`，还有 `Packet.dll`、`wintun.dll`、`WinDivert64.sys` 等运行期文件（见上）。安装日志会写「installed N files」，只装 exe 会让节点在启动瞬间退出。
+- **装到用户目录**：不需要管理员权限，也不改写系统 PATH；面板会显示完整路径，需要的话自己加进 PATH。
+- **只信稳定版**：宁可报错也不装预发布版。
+- **已有目录不复制也不移动**：只登记路径。用户删掉那个目录，插件下次启动会当作没装（状态文件里记的路径不存在就忽略）。
+
 ## 安装
 
 本插件位于工作区的 `dsh-easytier/` 子目录（每个插件一个独立目录）。
@@ -100,6 +155,7 @@ dsh plugin --profile web add D:\workspace\dsh-plugin\dsh-easytier
     rpcPortal: '127.0.0.1:15888'                          # 覆盖 RPC 门户
     configFile: 'C:\ProgramData\easytier\config.toml'     # 覆盖配置文件
     discoveryCacheMs: 5000                                # 发现结果缓存时长
+    installDir: 'C:\Users\me\AppData\Local\Programs\easytier'  # 初始化时的安装目录
 ```
 
 自动发现失败时才需要覆盖项；默认情况下留空即可。
@@ -121,7 +177,13 @@ dsh plugin --profile web add D:\workspace\dsh-plugin\dsh-easytier
 
 面板通过 `/api/dsh-easytier/*` 访问宿主，**仅限本机回环**（校验 socket 地址与 Host 头，并检查浏览器同源标记）。这些接口能改 VPN 配置、能读写配置文件、能启停系统服务，因此把 dsh web 暴露到局域网时不应开放它们。
 
-端点：`/snapshot`、`/refresh`、`/terminals`、`/info`、`/port-forwards`、`/whitelist`、`/credentials`、`/connectors`、`/probe`、`/service`、`/config`、`/cli`。
+端点：`/snapshot`、`/refresh`、`/terminals`、`/info`、`/port-forwards`、`/whitelist`、`/credentials`、`/connectors`、`/probe`、`/service`、`/config`、`/cli`，以及初始化用的 `/install`（`GET` 查状态、`POST` 开始、`DELETE` 取消）和启动节点用的 `/node`（`GET` 查状态、`POST` 启动、`DELETE` 停止）。`/snapshot` 的响应里额外带 `install`（检测结果 + 当前任务），面板据此决定显示初始化卡片还是空状态。
+
+`POST /install` 的请求体是 `{ "proxy": "127.0.0.1:7890", "dir": "D:\\tools\\easytier" }`：`proxy` 可省略/null 表示直连，可带 `socks5://` / `http://` 前缀，只在本次任务里使用，任务快照的 `proxy.active` 会告诉你是 SOCKS5 还是 HTTP 真的通了；`dir` 可省略/null，给了就**只校验并采用**该目录（`mode: "adopt"`，不下载），校验内容与失败码见上文。
+
+初始化接口同样受回环栅栏保护；下载目标是固定的 GitHub Releases 域名与发布资产地址，不接受客户端传入 URL——客户端只能提供**代理地址**和**一个已存在的本地目录**，不能替换下载源。
+
+`POST /node` 的请求体是 `{ "networkName": "my-mesh", "networkSecret": "…", "peers": "tcp://public.easytier.cn:11010", "ipv4": "10.126.126.7", "noTun": true }`：`corePath` 由宿主从发现结果里取，客户端传不进来，因此没装 EasyTier 时这个接口只会报 `not_installed`。启动后 `lib/runner.js` 等 RPC 门户真正接受连接才算成功；`DELETE /node` 结束整棵进程树并清掉记录。
 
 ## 安全与限制
 
@@ -150,6 +212,8 @@ lib/discover.js   进程优先的发现逻辑（进程/端口/配置/CLI 定位�
 lib/cli.js        easytier-cli 调用与错误归一
 lib/ops.js        纯解码器（peer/route 合并、IPv4 u32、白名单、凭证等）
 lib/easytier.js   领域服务：面板与工具共用的全部操作
+lib/install.js    初始化：GitHub 稳定版解析、流式下载、校验、解压、安装；已有目录的校验与登记（install.json）
+lib/proxy.js      初始化下载用的代理：`host:port` 解析，SOCKS5 优先、HTTP CONNECT 兜底
 lib/routes.js     /api/dsh-easytier 路由族（回环信任栅栏）
 lib/tools.js      easytier 工具定义与文本渲染
 client.js         浏览器端：侧边栏入口 + 分标签面板

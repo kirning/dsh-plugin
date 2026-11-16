@@ -15,6 +15,9 @@ window.__ModuleLoader__.load({
 
     const API = "/api/dsh-easytier";
 
+    /** Public discovery peer, matching `lib/runner.js` DEFAULT_PEER. */
+    const DEFAULT_PEER_TEXT = "tcp://public.easytier.cn:11010";
+
     // #region styles
     const CSS = [
       ".et-panel{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;min-width:0;padding:14px 16px 16px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family)}",
@@ -81,6 +84,14 @@ window.__ModuleLoader__.load({
       ".et-textarea:disabled{opacity:.6}",
       ".et-meta{font-size:11.5px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}",
       ".et-backups{font-size:11.5px;color:var(--dsw-alias-label-tertiary);line-height:1.6;overflow-wrap:anywhere}",
+      ".et-install{display:flex;flex-direction:column;gap:10px;max-width:720px}",
+      ".et-progress{height:8px;border-radius:99px;background:var(--dsw-alias-bg-base);border:1px solid var(--dsw-alias-border-l2);overflow:hidden}",
+      ".et-progressBar{height:100%;background:var(--dsw-alias-state-business-primary);transition:width .25s linear}",
+      ".et-log{max-height:240px;overflow:auto;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-base);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.6}",
+      ".et-logLine{display:flex;gap:8px;overflow-wrap:anywhere}",
+      ".et-logLine[data-level=warn]{color:var(--dsw-alias-state-warn-primary)}",
+      ".et-logLine[data-level=error]{color:var(--dsw-alias-state-error-primary)}",
+      ".et-logTime{flex:none;color:var(--dsw-alias-label-tertiary)}",
     ].join("");
 
     /** Install the stylesheet once and return its disposer. */
@@ -239,6 +250,78 @@ window.__ModuleLoader__.load({
       "status.cli": "CLI",
       "status.started": "已启动",
       "status.stopped": "未启动",
+      "install.title": "初始化 EasyTier",
+      "install.intro": "本机还没有安装 EasyTier。点击下方按钮，插件会从 GitHub 下载最新的稳定版，解压后放到用户目录，不需要管理员权限。",
+      "install.target": "安装目录：{dir}",
+      "install.start": "初始化",
+      "install.retry": "重试",
+      "install.cancel": "取消",
+      "install.running": "正在初始化…",
+      "install.done": "初始化完成：EasyTier {version} 已安装到 {dir}",
+      "install.failed": "初始化失败：{message}",
+      "install.unavailable": "当前版本不提供初始化能力，请手动安装 EasyTier。",
+      "install.installedTitle": "EasyTier 已安装，但当前没有运行中的节点",
+      "install.installed": "检测到 EasyTier {version}",
+      "install.installedHint": "点下面的「启动节点」就能加入网络并看到终端，也可以在 EasyTier GUI 里加入。",
+      "install.phase.resolve": "正在查询最新版本",
+      "install.phase.download": "正在下载",
+      "install.phase.verify": "正在校验",
+      "install.phase.extract": "正在解压",
+      "install.phase.install": "正在安装",
+      "install.proxyLabel": "下载代理（可选）",
+      "install.proxyPlaceholder": "例如 127.0.0.1:7890",
+      "install.proxyHint": "只需要填 IP:端口。优先走 SOCKS5，不通时自动改用 HTTP 代理；留空则直连。",
+      "install.proxyUsed": "已通过 {label} 下载（{protocol}）",
+      "install.dirLabel": "EasyTier 目录（可选）",
+      "install.dirPlaceholder": "例如 C:\\Program Files\\EasyTier",
+      "install.dirHint": "留空则下载安装到默认目录；填写本机已有的 EasyTier 目录时，会先校验该目录里的必需文件（easytier-core、easytier-cli），校验通过就直接使用，不再下载。",
+      "install.browse": "浏览…",
+      "install.browsing": "请在系统窗口中选择目录…",
+      "install.pickFailed": "打不开系统目录选择器：{message}，可以手动输入路径。",
+      "install.dirInvalid": "该目录不可用：{message}",
+      "install.adopted": "已使用该目录中的 EasyTier {version}（{dir}）",
+      "install.readyCore": "核心程序：{path}",
+      "install.readyCli": "命令行：{path}",
+      "install.reinstall": "更换目录 / 重新初始化",
+      "install.readyTitle": "EasyTier 已就绪，尚未运行节点",
+      "install.readyHint": "目录已登记。在下面填好网络名称并点「启动节点」，即可加入网络并看到终端。",
+      "node.title": "启动 EasyTier 节点",
+      "node.hint": "填一个网络名称就能加入：其它终端用同名网络（和同样的密钥）即可互相看到。默认通过公共节点发现对端，并关闭虚拟网卡，因此不需要管理员权限。",
+      "node.network": "网络名称",
+      "node.networkPlaceholder": "例如：my-mesh",
+      "node.nameRequired": "请先填网络名称。",
+      "node.secret": "网络密钥（可选）",
+      "node.secretPlaceholder": "与其它终端保持一致的密钥",
+      "node.peers": "对端地址（可选）",
+      "node.peersHint": "多个用逗号或空格分隔；留空则用公共节点 {peer}。",
+      "node.ipv4": "虚拟 IP（可选）",
+      "node.ipv4Placeholder": "例如：10.126.126.7",
+      "node.noTun": "不创建虚拟网卡（推荐，不需要管理员权限）",
+      "node.start": "启动节点",
+      "node.stop": "停止节点",
+      "node.running": "节点已启动（pid {pid}），正在等终端出现…",
+      "node.waiting": "已启动，但还没有发现终端：稍等几秒，或点「刷新」重试。",
+      "node.logHint": "日志：{path}",
+      "log.dirCheck": "校验目录 {dir}",
+      "log.dirMissing": "目录缺少必需文件：{files}",
+      "log.adopted": "已登记 {dir} 中的 EasyTier {version}",
+      "log.proxy": "通过代理 {label} 下载（{protocol}）",
+      "log.proxyFallback": "{protocol} 代理没有响应，改用另一种协议：{message}",
+      "log.start": "开始初始化",
+      "log.lookup": "正在向 GitHub 查询最新稳定版",
+      "log.lookupFallback": "查询 latest 失败，改为列出发布列表",
+      "log.release": "最新稳定版：{tag}",
+      "log.asset": "下载 {name}（{size}）",
+      "log.platform": "目标平台：{platform}/{arch}（{triple}）",
+      "log.downloaded": "下载完成（{size}）",
+      "log.verify": "下载完成，大小与发布信息一致（{size}）",
+      "log.extract": "已用 {tool} 解压",
+      "log.extractMissing": "{tool} 不可用，尝试下一个解压工具",
+      "log.extractRetry": "{tool} 解压失败，尝试下一个解压工具",
+      "log.installed": "已安装 {count} 个可执行文件到 {dir}",
+      "log.done": "EasyTier {version} 已安装到 {dir}",
+      "log.failed": "初始化失败：{message}",
+      "log.cancelled": "初始化已取消",
     };
 
     const en = {
@@ -380,6 +463,78 @@ window.__ModuleLoader__.load({
       "status.cli": "CLI",
       "status.started": "started",
       "status.stopped": "not started",
+      "install.title": "Initialize EasyTier",
+      "install.intro": "EasyTier is not installed on this machine. The plugin can download the latest stable release from GitHub and unpack it into your user directory; no administrator rights needed.",
+      "install.target": "Install directory: {dir}",
+      "install.start": "Initialize",
+      "install.retry": "Retry",
+      "install.cancel": "Cancel",
+      "install.running": "Initializing…",
+      "install.done": "Initialized: EasyTier {version} is installed in {dir}",
+      "install.failed": "Initialization failed: {message}",
+      "install.unavailable": "This build cannot provision EasyTier; install it manually.",
+      "install.installedTitle": "EasyTier is installed, but no node is running",
+      "install.installed": "EasyTier {version} was detected",
+      "install.installedHint": "Press Start node below to join a network and list terminals, or join from the EasyTier GUI.",
+      "install.phase.resolve": "resolving the latest release",
+      "install.phase.download": "downloading",
+      "install.phase.verify": "verifying",
+      "install.phase.extract": "unpacking",
+      "install.phase.install": "installing",
+      "install.proxyLabel": "Download proxy (optional)",
+      "install.proxyPlaceholder": "for example 127.0.0.1:7890",
+      "install.proxyHint": "Just IP:port. SOCKS5 is tried first and HTTP is used when that does not answer; leave it empty to download directly.",
+      "install.proxyUsed": "Downloaded through {label} ({protocol})",
+      "install.dirLabel": "EasyTier directory (optional)",
+      "install.dirPlaceholder": "for example C:\\Program Files\\EasyTier",
+      "install.dirHint": "Leave it empty to install into the default directory. Point it at an existing EasyTier and the plugin checks that directory for the required binaries (easytier-core, easytier-cli) and uses it as is instead of downloading.",
+      "install.browse": "Browse…",
+      "install.browsing": "Pick a directory in the system window…",
+      "install.pickFailed": "The system directory chooser did not open: {message}. You can type the path instead.",
+      "install.dirInvalid": "That directory is not usable: {message}",
+      "install.adopted": "Using EasyTier {version} from {dir}",
+      "install.readyCore": "Core binary: {path}",
+      "install.readyCli": "CLI: {path}",
+      "install.reinstall": "Change directory / initialize again",
+      "install.readyTitle": "EasyTier is ready, but no node is running",
+      "install.readyHint": "The directory is remembered. Enter a network name below and press Start node to join and list terminals.",
+      "node.title": "Start an EasyTier node",
+      "node.hint": "A network name is all it takes: other terminals on the same network (and secret) will see this one. Discovery goes through the public peer and no TUN device is created, so no administrator rights are needed.",
+      "node.network": "Network name",
+      "node.networkPlaceholder": "e.g. my-mesh",
+      "node.nameRequired": "Enter a network name first.",
+      "node.secret": "Network secret (optional)",
+      "node.secretPlaceholder": "the same secret the other terminals use",
+      "node.peers": "Peers (optional)",
+      "node.peersHint": "Comma or space separated; empty uses the public peer {peer}.",
+      "node.ipv4": "Virtual IP (optional)",
+      "node.ipv4Placeholder": "e.g. 10.126.126.7",
+      "node.noTun": "Do not create a virtual adapter (recommended, no admin rights)",
+      "node.start": "Start node",
+      "node.stop": "Stop node",
+      "node.running": "Node started (pid {pid}), waiting for terminals…",
+      "node.waiting": "Started, but no terminal has appeared yet: give it a few seconds, or press Refresh.",
+      "node.logHint": "Log: {path}",
+      "log.dirCheck": "checking {dir}",
+      "log.dirMissing": "the directory is missing: {files}",
+      "log.adopted": "registered EasyTier {version} from {dir}",
+      "log.proxy": "downloading through {label} ({protocol})",
+      "log.proxyFallback": "the {protocol} proxy did not answer, switching protocol: {message}",
+      "log.start": "starting initialization",
+      "log.lookup": "asking GitHub for the latest stable release",
+      "log.lookupFallback": "latest lookup failed, listing releases instead",
+      "log.release": "latest stable release is {tag}",
+      "log.asset": "downloading {name} ({size})",
+      "log.platform": "target platform: {platform}/{arch} ({triple})",
+      "log.downloaded": "download finished ({size})",
+      "log.verify": "download finished and matches the release size ({size})",
+      "log.extract": "unpacked with {tool}",
+      "log.extractMissing": "{tool} is unavailable, trying the next unpacker",
+      "log.extractRetry": "{tool} could not unpack the archive, trying the next unpacker",
+      "log.installed": "installed {count} binaries into {dir}",
+      "log.done": "EasyTier {version} is installed in {dir}",
+      "log.failed": "initialization failed: {message}",
+      "log.cancelled": "initialization cancelled",
     };
     // #endregion
 
@@ -495,6 +650,33 @@ window.__ModuleLoader__.load({
 
       saveConfig(body) {
         return this.request("/config", "POST", body);
+      }
+
+      installStatus() {
+        return this.request("/install");
+      }
+
+      startInstall(proxy, dir) {
+        return this.request("/install", "POST", {
+          proxy: typeof proxy === "string" && proxy.trim() !== "" ? proxy.trim() : null,
+          dir: typeof dir === "string" && dir.trim() !== "" ? dir.trim() : null,
+        });
+      }
+
+      cancelInstall() {
+        return this.request("/install", "DELETE");
+      }
+
+      nodeStatus() {
+        return this.request("/node");
+      }
+
+      startNode(body) {
+        return this.request("/node", "POST", body || {});
+      }
+
+      stopNode() {
+        return this.request("/node", "DELETE");
       }
     }
     // #endregion
@@ -1276,6 +1458,472 @@ window.__ModuleLoader__.load({
           })));
     }
 
+    // #region install
+    /** Human-readable byte size. */
+    function formatBytes(bytes) {
+      const value = Number(bytes);
+      if (!Number.isFinite(value) || value <= 0) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      let size = value;
+      let index = 0;
+      while (size >= 1024 && index < units.length - 1) {
+        size = size / 1024;
+        index += 1;
+      }
+      return (size >= 10 || index === 0 ? Math.round(size) : size.toFixed(1)) + " " + units[index];
+    }
+
+    /** Translated log line, or the host's own sentence when the code is unknown. */
+    function logText(t, entry) {
+      const key = "log." + String(entry.code || "");
+      const label = t(key, entry.params || {});
+      return label === key ? String(entry.text || "") : label;
+    }
+
+    /**
+     * Provisioning card.
+     *
+     * Two states share the card: nothing installed (offer the button, then show
+     * the running job), and installed-but-idle (tell the user how to start a
+     * node). The job is polled — one request per second — and only while it runs.
+     */
+    /** Where the panel remembers the proxy the user typed, so it survives a reload. */
+    const INSTALL_PROXY_KEY = "dsh-easytier.installProxy";
+
+    /** Where the panel remembers a directory the user pointed at. */
+    const INSTALL_DIR_KEY = "dsh-easytier.installDir";
+
+    function InstallPanel(props) {
+      const t = props.t;
+      const api = props.api;
+      const [status, setStatus] = react.useState(props.status);
+      const [pending, setPending] = react.useState(false);
+      const [browsing, setBrowsing] = react.useState(false);
+      const [forceForm, setForceForm] = react.useState(false);
+      const [error, setError] = react.useState("");
+      const [dir, setDir] = react.useState(() => {
+        try {
+          const saved = window.localStorage.getItem(INSTALL_DIR_KEY);
+          return typeof saved === "string" ? saved : "";
+        } catch (failure) {
+          return "";
+        }
+      });
+      const [proxy, setProxy] = react.useState(() => {
+        try {
+          const saved = window.localStorage.getItem(INSTALL_PROXY_KEY);
+          return typeof saved === "string" ? saved : "";
+        } catch (failure) {
+          return "";
+        }
+      });
+
+      react.useEffect(() => {
+        setStatus(props.status);
+      }, [props.status]);
+
+      const job = status !== null && status !== undefined && status.job ? status.job : null;
+      const detection = status !== null && status !== undefined && status.detection ? status.detection : null;
+      const running = job !== null && job.status === "running";
+
+      react.useEffect(() => {
+        if (!running) return undefined;
+        let alive = true;
+        const timer = setInterval(() => {
+          api.installStatus()
+            .then((next) => {
+              if (!alive || next === null || next === undefined) return;
+              setStatus(next);
+              if (next.job === null || next.job.status !== "running") {
+                props.onSettled();
+                if (next.job !== null && next.job.status === "done" && typeof props.onEntered === "function") props.onEntered();
+              }
+            })
+            .catch(() => {
+              /* a dropped poll is retried on the next tick */
+            });
+        }, 1000);
+        return () => {
+          alive = false;
+          clearInterval(timer);
+        };
+      }, [running, api]);
+
+      /** Ask the host-side chooser for a directory (the same one the workspace UI uses). */
+      const browse = () => {
+        if (typeof props.pickDirectory !== "function") return;
+        setBrowsing(true);
+        setError("");
+        props.pickDirectory()
+          .then((picked) => {
+            if (typeof picked === "string" && picked !== "") {
+              setDir(picked);
+              try {
+                window.localStorage.setItem(INSTALL_DIR_KEY, picked);
+              } catch (failure) {
+                /* storage may be unavailable; the value still applies to this run */
+              }
+            }
+          })
+          .catch((failure) => {
+            setError(t("install.pickFailed", { message: failure instanceof Error ? failure.message : String(failure) }));
+          })
+          .then(() => setBrowsing(false));
+      };
+
+      const start = () => {
+        setPending(true);
+        setError("");
+        const trimmedProxy = proxy.trim();
+        const trimmedDir = dir.trim();
+        try {
+          window.localStorage.setItem(INSTALL_PROXY_KEY, trimmedProxy);
+          window.localStorage.setItem(INSTALL_DIR_KEY, trimmedDir);
+        } catch (failure) {
+          /* storage may be unavailable; the values still apply to this run */
+        }
+        api.startInstall(trimmedProxy, trimmedDir)
+          .then((next) => {
+            if (next !== null && next !== undefined && next.job) {
+              setStatus((prev) => ({ ...(prev || {}), job: next.job }));
+            }
+          })
+          .catch((failure) => setError(failure instanceof Error ? failure.message : String(failure)))
+          .then(() => setPending(false));
+      };
+
+      const cancel = () => {
+        api.cancelInstall()
+          .then((next) => {
+            if (next !== null && next !== undefined && next.job) {
+              setStatus((prev) => ({ ...(prev || {}), job: next.job }));
+            }
+          })
+          .catch((failure) => setError(failure instanceof Error ? failure.message : String(failure)));
+      };
+
+      if (detection === null) return h("div", { className: "et-empty" }, t("install.unavailable"));
+
+      const logs = job !== null && Array.isArray(job.logs) ? job.logs : [];
+      const percent = job === null ? 0 : Math.max(0, Math.min(100, Math.round((Number(job.progress) || 0) * 100)));
+      const logList = logs.length === 0
+        ? null
+        : h("div", { className: "et-log" },
+          logs.map((entry, index) => h("div", { className: "et-logLine", key: String(index), "data-level": entry.level },
+            h("span", { className: "et-logTime" }, new Date(entry.at).toLocaleTimeString()),
+            h("span", null, logText(t, entry)))));
+
+      if (detection.installed === true && forceForm !== true) {
+        const version = typeof detection.version === "string" && detection.version !== "" ? detection.version : "?";
+        return h("div", { className: "et-card et-install" },
+          h("div", { className: "et-cardTitle" }, t("install.installedTitle")),
+          h("div", { className: "et-muted" }, t("install.installed", { version })),
+          h("div", { className: "et-hint" }, t("install.installedHint")),
+          typeof detection.cliPath === "string" && detection.cliPath !== ""
+            ? h("div", { className: "et-meta et-mono" }, detection.cliPath)
+            : null,
+          h("div", { className: "et-actions" },
+            h("button", { type: "button", className: "et-btn", onClick: props.onSettled }, t("common.refresh")),
+            h("button", {
+              type: "button",
+              className: "et-btn",
+              "data-testid": "et-install-change",
+              onClick: () => setForceForm(true),
+            }, t("install.reinstall"))));
+      }
+
+      const finished = job !== null && job.status === "done";
+      const progressLine = job === null
+        ? ""
+        : t("install.phase." + String(job.phase || "resolve")) + " · " + String(percent) + "%" +
+          (job.total > 0 ? " · " + formatBytes(job.downloaded) + " / " + formatBytes(job.total) : "");
+
+      return h("div", { className: "et-card et-install" },
+        h("div", { className: "et-cardTitle" }, t("install.title")),
+        h("div", { className: "et-muted" }, t("install.intro")),
+        h("div", { className: "et-hint" }, t("install.target", { dir: detection.installDir })),
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-install-dir" }, t("install.dirLabel")),
+          h("div", { className: "et-row" },
+            h("input", {
+              id: "et-install-dir",
+              className: "et-input",
+              type: "text",
+              value: dir,
+              placeholder: t("install.dirPlaceholder"),
+              disabled: running,
+              spellCheck: false,
+              autoComplete: "off",
+              style: { flex: "1 1 280px" },
+              onChange: (event) => setDir(event.target.value),
+            }),
+            typeof props.pickDirectory === "function"
+              ? h("button", {
+                type: "button",
+                className: "et-btn",
+                "data-testid": "et-install-browse",
+                disabled: running || pending || browsing,
+                onClick: browse,
+              }, browsing ? t("install.browsing") : t("install.browse"))
+              : null),
+          h("div", { className: "et-hint" }, t("install.dirHint"))),
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-install-proxy" }, t("install.proxyLabel")),
+          h("input", {
+            id: "et-install-proxy",
+            className: "et-input",
+            type: "text",
+            value: proxy,
+            placeholder: t("install.proxyPlaceholder"),
+            disabled: running,
+            spellCheck: false,
+            autoComplete: "off",
+            onChange: (event) => setProxy(event.target.value),
+          }),
+          h("div", { className: "et-hint" }, t("install.proxyHint"))),
+        job !== null && job.proxy ? h("div", { className: "et-meta" },
+          t("install.proxyUsed", { label: job.proxy.label, protocol: String(job.proxy.active || job.proxy.protocol).toUpperCase() })) : null,
+        error === "" ? null : notice("error", error),
+        job !== null && job.status === "error" ? notice("error", t("install.failed", { message: job.error || "" })) : null,
+        finished && job.result !== null && job.result !== undefined
+          ? notice("ok", job.result.mode === "adopt"
+            ? t("install.adopted", {
+              version: job.result.version || "?",
+              dir: job.result.installDir || detection.installDir,
+            })
+            : t("install.done", {
+              version: job.result.version || "?",
+              dir: job.result.installDir || detection.installDir,
+            }))
+          : null,
+        h("div", { className: "et-toolbar" },
+          running || finished
+            ? null
+            : h("button", {
+              type: "button",
+              className: "et-btn",
+              "data-primary": "",
+              disabled: pending,
+              onClick: start,
+            }, job !== null && job.status === "error" ? t("install.retry") : t("install.start")),
+          running ? h("button", { type: "button", className: "et-btn", "data-danger": "", onClick: cancel }, t("install.cancel")) : null,
+          h("span", { className: "et-spacer" }),
+          running ? h("span", { className: "et-meta" }, t("install.running")) : null),
+        running || finished
+          ? h("div", { className: "et-progress" }, h("div", { className: "et-progressBar", style: { width: String(percent) + "%" } }))
+          : null,
+        progressLine === "" ? null : h("div", { className: "et-meta" }, progressLine),
+        logList);
+    }
+    // #endregion
+
+    /** Where the panel remembers the last node form (never the network secret). */
+    const NODE_FORM_KEY = "dsh-easytier.nodeForm";
+
+    /** Read the remembered node form, falling back to one public peer. */
+    function readNodeForm() {
+      const fallback = { networkName: "", peers: DEFAULT_PEER_TEXT, ipv4: "", noTun: true };
+      try {
+        const raw = window.localStorage.getItem(NODE_FORM_KEY);
+        if (typeof raw !== "string" || raw === "") return fallback;
+        const parsed = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== "object") return fallback;
+        return {
+          networkName: typeof parsed.networkName === "string" ? parsed.networkName : "",
+          peers: typeof parsed.peers === "string" && parsed.peers.trim() !== "" ? parsed.peers : DEFAULT_PEER_TEXT,
+          ipv4: typeof parsed.ipv4 === "string" ? parsed.ipv4 : "",
+          noTun: parsed.noTun !== false,
+        };
+      } catch (failure) {
+        return fallback;
+      }
+    }
+
+    /**
+     * The control panel once EasyTier is present but no node is running yet.
+     *
+     * The user lands here on purpose after provisioning, and it starts the node
+     * itself: fill a network name, press start, and the terminals appear without
+     * leaving the panel (or touching the EasyTier GUI).
+     */
+    function StartCard(props) {
+      const t = props.t;
+      const api = props.api;
+      const detection = props.detection;
+      const version = typeof detection.version === "string" && detection.version !== "" ? detection.version : "?";
+      const initial = readNodeForm();
+      const [networkName, setNetworkName] = react.useState(initial.networkName);
+      const [secret, setSecret] = react.useState("");
+      const [peers, setPeers] = react.useState(initial.peers);
+      const [ipv4, setIpv4] = react.useState(initial.ipv4);
+      const [noTun, setNoTun] = react.useState(initial.noTun);
+      const [node, setNode] = react.useState(null);
+      const [pending, setPending] = react.useState(false);
+      const [error, setError] = react.useState("");
+
+      const loadNode = () => {
+        api.nodeStatus()
+          .then((next) => setNode(next))
+          .catch(() => {
+            /* the panel still works without a node status */
+          });
+      };
+
+      react.useEffect(() => {
+        loadNode();
+      }, [api]);
+
+      // While the node runs but discovery still reports nothing, keep asking the
+      // panel to reload: the core needs a moment before its RPC portal answers.
+      const waiting = node !== null && node.running === true;
+      react.useEffect(() => {
+        if (!waiting) return undefined;
+        const timer = setInterval(() => {
+          props.onRefresh();
+          loadNode();
+        }, 1500);
+        return () => clearInterval(timer);
+      }, [waiting, api]);
+
+      const start = () => {
+        const trimmed = networkName.trim();
+        if (trimmed === "") {
+          setError(t("node.nameRequired"));
+          return;
+        }
+        setPending(true);
+        setError("");
+        try {
+          window.localStorage.setItem(NODE_FORM_KEY, JSON.stringify({
+            networkName: trimmed,
+            peers: peers.trim(),
+            ipv4: ipv4.trim(),
+            noTun,
+          }));
+        } catch (failure) {
+          /* storage may be unavailable; the form still applies to this run */
+        }
+        api.startNode({
+          networkName: trimmed,
+          networkSecret: secret.trim() === "" ? null : secret.trim(),
+          peers: peers.trim(),
+          ipv4: ipv4.trim() === "" ? null : ipv4.trim(),
+          noTun,
+        })
+          .then((next) => {
+            setNode(next);
+            props.onRefresh();
+          })
+          .catch((failure) => setError(failure instanceof Error ? failure.message : String(failure)))
+          .then(() => setPending(false));
+      };
+
+      const stop = () => {
+        setPending(true);
+        setError("");
+        api.stopNode()
+          .then((next) => {
+            setNode(next !== null && next !== undefined && next.node ? next.node : null);
+            props.onRefresh();
+          })
+          .catch((failure) => setError(failure instanceof Error ? failure.message : String(failure)))
+          .then(() => setPending(false));
+      };
+
+      const running = node !== null && node.running === true;
+      const logTail = node !== null && Array.isArray(node.logTail) ? node.logTail : [];
+
+      return h("div", { className: "et-card et-install", "data-state": "ready" },
+        h("div", { className: "et-cardTitle" }, t("node.title")),
+        h("div", { className: "et-muted" }, t("install.installed", { version })),
+        h("div", { className: "et-hint" }, t("node.hint")),
+        error === "" ? null : notice("error", error),
+        running
+          ? notice("ok", t("node.running", { pid: String(node.pid) }))
+          : null,
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-node-network" }, t("node.network")),
+          h("input", {
+            id: "et-node-network",
+            className: "et-input",
+            type: "text",
+            value: networkName,
+            placeholder: t("node.networkPlaceholder"),
+            disabled: running,
+            spellCheck: false,
+            autoComplete: "off",
+            onInput: (event) => setNetworkName(event.target.value),
+          })),
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-node-secret" }, t("node.secret")),
+          h("input", {
+            id: "et-node-secret",
+            className: "et-input",
+            type: "password",
+            value: secret,
+            placeholder: t("node.secretPlaceholder"),
+            disabled: running,
+            spellCheck: false,
+            autoComplete: "new-password",
+            onInput: (event) => setSecret(event.target.value),
+          })),
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-node-peers" }, t("node.peers")),
+          h("input", {
+            id: "et-node-peers",
+            className: "et-input",
+            type: "text",
+            value: peers,
+            placeholder: DEFAULT_PEER_TEXT,
+            disabled: running,
+            spellCheck: false,
+            autoComplete: "off",
+            onInput: (event) => setPeers(event.target.value),
+          }),
+          h("div", { className: "et-hint" }, t("node.peersHint", { peer: DEFAULT_PEER_TEXT }))),
+        h("div", { className: "et-field" },
+          h("label", { className: "et-label", htmlFor: "et-node-ipv4" }, t("node.ipv4")),
+          h("input", {
+            id: "et-node-ipv4",
+            className: "et-input",
+            type: "text",
+            value: ipv4,
+            placeholder: t("node.ipv4Placeholder"),
+            disabled: running || noTun,
+            spellCheck: false,
+            autoComplete: "off",
+            onInput: (event) => setIpv4(event.target.value),
+          })),
+        h("label", { className: "et-check" },
+          h("input", {
+            type: "checkbox",
+            checked: noTun,
+            disabled: running,
+            onChange: (event) => setNoTun(event.target.checked),
+          }),
+          h("span", null, t("node.noTun"))),
+        typeof node === "object" && node !== null && typeof node.logPath === "string" && node.logPath !== ""
+          ? h("div", { className: "et-meta et-mono" }, t("node.logHint", { path: node.logPath }))
+          : null,
+        running && logTail.length > 0
+          ? h("div", { className: "et-log" },
+            logTail.slice(-12).map((line, index) => h("div", { className: "et-logLine", key: String(index) },
+              h("span", null, line))))
+          : null,
+        h("div", { className: "et-actions" },
+          running
+            ? h("button", { type: "button", className: "et-btn", "data-danger": "", disabled: pending, onClick: stop, "data-testid": "et-node-stop" }, t("node.stop"))
+            : h("button", { type: "button", className: "et-btn", "data-primary": "", disabled: pending, onClick: start, "data-testid": "et-node-start" }, t("node.start")),
+          h("button", { type: "button", className: "et-btn", disabled: pending, onClick: () => {
+            loadNode();
+            props.onRefresh();
+          } }, t("common.refresh")),
+          h("button", { type: "button", className: "et-btn", onClick: props.onReinstall }, t("install.reinstall"))),
+        running && logTail.length === 0
+          ? h("div", { className: "et-hint" }, t("node.waiting"))
+          : null);
+    }
+
     /** The EasyTier panel: instance header, tabs, and tab content. */
     function Panel(props) {
       const t = props.t;
@@ -1284,6 +1932,7 @@ window.__ModuleLoader__.load({
       const [activeId, setActiveId] = react.useState(null);
       const [noticeState, setNoticeState] = react.useState(null);
       const [forwardTarget, setForwardTarget] = react.useState(null);
+      const [showInstall, setShowInstall] = react.useState(false);
       const snap = useAsync(() => api.snapshot(false), [api]);
 
       const instances = snap.data && Array.isArray(snap.data.instances) ? snap.data.instances : [];
@@ -1342,9 +1991,27 @@ window.__ModuleLoader__.load({
         snap.error !== "" ? notice("error", snap.error) : null,
         snap.loading && snap.data === null ? h("div", { className: "et-empty" }, t("common.loading")) : null,
         snap.data !== null && instances.length === 0
-          ? h("div", { className: "et-empty" },
-            h("div", null, t("instance.none")),
-            h("div", { style: { marginTop: "6px" } }, diagnostics.cliMissing === true ? t("instance.cliMissing") : t("instance.noneHint")))
+          ? (snap.data.install === null || snap.data.install === undefined
+            ? h("div", { className: "et-empty" },
+              h("div", null, t("instance.none")),
+              h("div", { style: { marginTop: "6px" } }, diagnostics.cliMissing === true ? t("instance.cliMissing") : t("instance.noneHint")))
+            : (snap.data.install.detection !== null && snap.data.install.detection !== undefined
+              && snap.data.install.detection.installed === true && showInstall !== true
+              ? h(StartCard, {
+                api,
+                t,
+                detection: snap.data.install.detection,
+                onRefresh: snap.reload,
+                onReinstall: () => setShowInstall(true),
+              })
+              : h(InstallPanel, {
+                api,
+                t,
+                status: snap.data.install,
+                pickDirectory: props.pickDirectory,
+                onSettled: snap.reload,
+                onEntered: () => setShowInstall(false),
+              })))
           : null,
         instances.length === 0
           ? null
@@ -1370,6 +2037,30 @@ window.__ModuleLoader__.load({
       const t = ctx.locale.bind(NS);
       const api = new EasytierApi();
 
+      /**
+       * The host's own directory chooser — the very one the workspace UI uses
+       * (`remote.directoryPicker`, backed by the native chooser on a local
+       * Windows/macOS host). It is optional here: a composition without a picker
+       * throws, and the panel then asks the user to type the path instead.
+       *
+       * @returns {Promise<string|null>} chosen directory, or null when cancelled.
+       */
+      const pickDirectory = async () => {
+        const remote = typeof ctx.get === "function" ? ctx.get("remote") : ctx.remote;
+        const picker = remote === null || remote === undefined ? null : remote.directoryPicker;
+        if (picker === null || picker === undefined || typeof picker.pick !== "function") {
+          throw new Error("this build has no directory chooser");
+        }
+        const result = await picker.pick();
+        if (result !== null && result !== undefined && result.ok === false) {
+          throw new Error(result.error && result.error.message ? result.error.message : "the directory chooser failed");
+        }
+        const value = result !== null && result !== undefined && typeof result === "object" && "value" in result
+          ? result.value
+          : result;
+        return typeof value === "string" ? value : null;
+      };
+
       ctx.slots.inject("main", () => ctx.slots.register({
         name: "main",
         key: PANEL_ID,
@@ -1377,6 +2068,7 @@ window.__ModuleLoader__.load({
         inject: () => ({
           api,
           t,
+          pickDirectory,
           onBack: () => ctx.layout.selectPanel(null),
         }),
       }, Panel));
@@ -1391,7 +2083,10 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply;
-    exports.inject = ["slots", "locale", "layout"];
+    // `remote` carries the host services, including the directory chooser the
+    // initialization card calls; declaring it keeps the panel from rendering
+    // before that service is up.
+    exports.inject = ["slots", "locale", "layout", "remote"];
     return module.exports;
   },
 });

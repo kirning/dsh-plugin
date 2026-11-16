@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-company-quota",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "DeepSeek Harness 插件：「公司额度」设置分区——公司大模型的月度额度、逐日消费日历（余额差）与额度耗尽预测",
   "type": "module",
   "main": "lib/index.js",
