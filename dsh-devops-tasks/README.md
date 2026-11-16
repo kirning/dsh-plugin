@@ -1,0 +1,87 @@
+# dsh-devops-tasks — DSH Web 插件：把我的 DevOps 工作项加载到侧边栏
+
+在 DeepSeek Harness Web GUI 的侧边栏加一个「我的 DevOps」入口，点开后是一个面板：
+
+- **三张计数卡片**：待办（待处理）/ 待审（待我评审）/ 我创建的，各自带分类明细（故事、任务、提醒、缺陷…）
+- **三个页签的列表**：编号（点一下复制）、标题、类型、状态、优先级、截止日期（过期标红）、所属系统
+- **搜索框**：在前端按编号/标题/系统过滤，不发新请求
+- **刷新**：手动强制刷新，并显示数据来自缓存还是刚取回
+
+数据来自 DevSecOps（`devsecops.midea.com`）的 MCP OpenApi 通道，也就是 DSH 里那个
+`devops-mcp-agile` MCP 服务；插件宿主半复用它配置里的 URL/PAT，PAT 不会进浏览器。
+
+## 结构
+
+```
+dsh-devops-tasks/
+├── index.js            # 宿主半：注册 /api/dsh-devops-tasks 路由 + 启动 2s 后预热
+├── client.js           # 浏览器半：sidebar.panellist 入口 + main 面板（手写 CJS 工厂，无构建）
+├── lib/mcp.js          # 极简 MCP Streamable-HTTP JSON-RPC 客户端 + 端点发现
+├── lib/devops.js       # 取数：三个桶的 scene、字段归一化、去重、排序、缓存
+├── lib/routes.js       # /health、/snapshot（stale-while-revalidate）
+├── cordis.patch.yml    # 自动挂载行
+└── package.json
+```
+
+## 宿主 HTTP 接口
+
+| 路径 | 说明 |
+|---|---|
+| `GET /api/dsh-devops-tasks/health` | 只读本地状态：`server`、脱敏后的 `endpoint`、`source`（发现到端点的文件）。加 `?probe=1` 才会真打平台列系统 |
+| `GET /api/dsh-devops-tasks/snapshot` | 完整快照：`counts`、`tabs.todo/review/created`（`items/total/truncated/partial`）、`warnings`、`fetchedAt`、`stale`。加 `?force=1` 强制回源 |
+
+两个接口都只接受**本机回环**请求（socket + Host 双校验），浏览器半靠同源 fetch 访问。
+
+## 端点发现顺序
+
+1. 插件 config 的 `endpoint`（`cordis.patch.yml` 里给 `dsh-devops-tasks` 行加 `config: { endpoint: ... }`）
+2. 环境变量 `DSH_DEVOPS_MCP_URL`
+3. `$DSH_HOME/cordis.patch.yml` 与 `$DSH_HOME/profiles/*/cordis.patch.yml|cordis.yml` 里
+   `- id: devops-mcp-agile` 块的 `url:`（默认，无需配置）
+
+发现结果缓存 60s；`/health` 的 `source` 会告诉你到底读的是哪个文件。
+
+## 性能与缓存（重要）
+
+DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/list` 合计 20s+，平台侧 12 次
+串行查询 2s），所以：
+
+- 快照写入 `$DSH_HOME/dsh-devops-tasks/last-snapshot.json`，**下次启动首帧直接返回缓存**（`stale: true`），
+  同时后台 `warmup()` 回源；浏览器半看到 `stale` 会在 2.5s 后自动重取一次。
+- 宿主注册路由后 2s 自动预热一次，避免用户第一次点开就等。
+- 调用一律**串行**：MCP 侧并发会把其中一路响应丢成空数组（实测 8 并发必丢 1 路），串行 2s 换正确性。
+- 平台单页硬上限 **50 行**（`pageSize` 给 100 也只回 50），命中上限时该桶标 `partial`，面板提示数据可能不完整。
+- 平台代理会关闭空闲 keep-alive 连接（`read ECONNRESET`），MCP 客户端遇传输错误会自动清会话并重试一次。
+
+排查时可开 `DSH_DEVOPS_TASKS_DEBUG=1`，宿主 stderr 会打印每一跳耗时：
+
+```
+[dsh-devops-tasks] rpc initialize 200 4929ms (...)
+[dsh-devops-tasks] snapshot 30701ms (identity=24736ms counts=482ms todo=435ms ...)
+```
+
+## 数据口径
+
+- 待办 = `toDoStatus: NOT_STARTED`，scene `to_do_item_all`
+- 待审 = `toDoStatus: NOT_REVIEW`，6 个评审 scene（测试计划/测试报告/里程碑/通用流程/审批流/共享用例）
+- 我创建的 = `toDoStatus: CREATED`，4 个 scene（需求/缺陷/审批流程/通用评审流程）
+- 计数走 `getCountAutoZone?zone=yellow`（组织不支持红黄区时 `isShowZoneSwitch` 为 false）
+- 「提醒」行是 @我 的评论：没有工作项编号，`toDoCategory.value = "6"`，标题是富文本 HTML，
+  面板里已剥成纯文本，并按「标题 + 系统」去重（不能按 id 去重，否则 16 条提醒会塌成 1 条）
+
+## 安装 / 卸载
+
+```powershell
+# profile package.json：dependencies 加 "dsh-devops-tasks": "link:D:/workspace/dsh-plugin/dsh-devops-tasks"
+#                     dsh.profile.bundles 加 "dsh-devops-tasks"
+dsh plugin --profile web install
+# 浏览器刷新即可，无需重启宿主（实测新增宿主插件行会被 profile 变化触发重新合成）
+```
+
+卸载：从 `dsh.profile.bundles` 与 `dependencies` 里去掉，再 `dsh plugin --profile web install`。
+
+## 已知限制
+
+- 工作项深链没有稳定规则（平台 `process_link` 对 story/detail 链接返回未命中），所以编号只做「复制」，不做跳转。
+- 「我创建的」只覆盖上述 4 个 scene，不包含我创建但已归档/删除的工作项。
+- 依赖 `devops-mcp-agile` MCP 服务的 PAT（`mcpu_…`），PAT 轮换后插件会在 60s 内自动用新端点。

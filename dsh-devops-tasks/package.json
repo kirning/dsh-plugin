@@ -1,0 +1,46 @@
+{
+  "name": "dsh-devops-tasks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "My DevOps workbench for the dsh web GUI: a sidebar entry that loads the three \"about me\" buckets of the company DevOps platform (待办 / 待审 / 我创建的) into one panel, with counts, type and status chips, due dates and owner, refresh and force-refresh. Data comes from the devops-mcp-agile MCP server through a zero-dependency MCP Streamable-HTTP client in the host process, so the access token never reaches the browser; the endpoint is discovered from the profile's cordis patch files. Ships a sidebar panel plus a loopback-only host route. Zero runtime dependencies.",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "devops",
+    "tasks",
+    "todo",
+    "bundle-plugin"
+  ],
+  "license": "Apache-2.0"
+}
