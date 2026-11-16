@@ -4,11 +4,13 @@
 
 **会话管理**（默认，纯客户端、零请求）
 
-- 本机会话按卡片列出：标题（两行省略）、状态（执行任务中 / 待审批 / 计划待审 / 待回答 / 执行完成 / 没有任务，
-  图标与判定口径和 DSH 侧边栏一致）、工作区名、最近使用时间
-- 卡片右上角：置顶图标（未置顶时 hover 才出现，置顶后常显）+ 三点菜单
+- 本机会话按卡片列出：官方状态点（执行任务中带旋转动画）+ 会话标题（两行省略）
+- 卡片中部：备注（点一下就地编辑，Enter 保存、Esc 取消，存 `localStorage`）+ 轮次数 + 会话累计 token
+- 卡片底部：工作区名、最近使用时间
+- 卡片右上角：定位图标（在左侧「工作区」里展开分组并滚动高亮该会话）、置顶图标
+  （未置顶时 hover 才出现，置顶后常显）、三点菜单
 - 三点菜单：置顶 / 取消置顶、重命名、分叉会话、复制 Session ID、在应用打开、归档会话（运行中的会先停下来再归档）
-- 工具栏：工作区筛选（全部 / 各工作区 / 未分组）+ 标题搜索
+- 工具栏：工作区筛选（全部 / 各工作区 / 未分组）+ 标题搜索（标题与备注都能搜）
 - 排序：置顶的按置顶时间排在最前，其余按最近使用时间倒序（不分工作区）；已归档与子代理会话不展示
 
 **Devops 管理**
@@ -88,12 +90,15 @@ DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/lis
 
 | 用途 | 服务 / 方法 |
 |---|---|
-| 会话清单 | `ctx.sessions.list`（`{ids, byId, phase}` 快照存储，订阅式） |
+| 会话清单 | `ctx.sessions.list`（`{ids, byId, phase, projectionsBySession}` 快照存储，订阅式） |
 | 会话状态 | `ctx.uiSession.sessionStatus`（`Map<sessionId, {running, pendingInteraction, completionUnread}>`） |
+| 轮次数 / token | `ctx.sessions.list.projectionsBySession[id].values`（`sessionStats.turns`、`tokenUsage` 四桶求和）+ `ctx.sessions.refreshProjections(id)` 懒加载 |
+| 状态图标 | `require("@deepseek-ai/dsh-client-ui-primitives").StateDot`（外壳模块表提供，ongoing 自带旋转） |
 | 工作区、归档、置顶 | `ctx.workspaces.list`（`{items, archivedSessionIds, pinnedSessionIds}`）+ `pinSession/unpinSession/archiveSession` |
 | 打开 / 分叉 / 归档 | `ctx.uiWorkspace.openSession/forkSession/archiveSession` |
 | 重命名 | `ctx.remote.session.rename({ sessionId, title })` → `RemoteResult` |
 | 在应用打开 | `ctx.remote.session.openWorkspacePath({ path })` → `RemoteResult` |
+| 侧栏定位 | DOM：`[data-row-key="workspace:…"]` 分组头、`[data-row-key="overflow:…"]`、`[data-row-key="session:…"]` |
 
 状态映射与 DSH 侧边栏一致：`pendingInteraction.kind` 为 `approval`/`plan-review`/`question` 时算「待回答」类，
 否则 `running` 算「执行任务中」，`completionUnread` 算「执行完成」，其余「没有任务」。
@@ -116,4 +121,6 @@ dsh plugin --profile web install
 - 「我创建的」只覆盖上述 4 个 scene，不包含我创建但已归档/删除的工作项。
 - 依赖 `devops-mcp-agile` MCP 服务的 PAT（`mcpu_…`），PAT 轮换后插件会在 60s 内自动用新端点。
 - 会话管理没有「取消归档」入口（归档动作直接调 `archiveSession`，恢复走 DSH 侧栏自己的「全部对话」）。
+- 备注只存在本机 `localStorage`（key `dsh-devops-tasks:notes`），不进会话、不上传。
+- 侧栏定位走 DOM（DSH 没有公开的 reveal API）：分组是虚拟列表，代码会点开分组、点「展开其余 N 个会话」并轮询等待行出现，最多约 4s。
 - 宿主半的字段改动（如新增「任务点数」）需要重启 `dsh web` 才生效；浏览器半刷新页面即可。

@@ -9,6 +9,19 @@ window.__ModuleLoader__.load({
     /** Shorthand for React.createElement (this module ships unbuilt). */
     const h = react.createElement;
 
+    /** Resolve a module from the shell's frozen platform table, if present. */
+    function platformModule(id) {
+      try {
+        return require(id);
+      } catch {
+        return undefined;
+      }
+    }
+
+    // The shell owns this module; asking for it is the only way to paint the
+    // same status dots (and the same running animation) the sidebar uses.
+    const primitives = platformModule("@deepseek-ai/dsh-client-ui-primitives");
+
     /** Locale namespace, panel id, and the host route this panel reads. */
     const NS = "dsh-devops-tasks";
     const PANEL_ID = "devops-tasks";
@@ -77,14 +90,24 @@ window.__ModuleLoader__.load({
       ".dt-card:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
       ".dt-card[data-current]{border-color:var(--dsw-alias-state-business-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-state-business-primary)}",
       ".dt-cardTop{display:flex;align-items:center;gap:6px;min-height:20px;min-width:0}",
-      ".dt-status{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}",
+      ".dt-status{display:inline-flex;flex:none;align-items:center;justify-content:center;width:14px;height:14px;color:var(--dsw-alias-label-tertiary)}",
       ".dt-status[data-state=ongoing]{color:var(--dsw-alias-state-business-primary)}",
       ".dt-status[data-state=warning]{color:var(--dsw-alias-state-warn-primary)}",
       ".dt-status[data-state=done]{color:var(--dsw-alias-state-success-primary)}",
-      ".dt-status[data-state=idle]{color:var(--dsw-alias-label-tertiary)}",
-      ".dt-cardTitle{margin:0;font-size:13px;font-weight:600;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;min-height:2.8em}",
-      ".dt-cardFoot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0}",
-      ".dt-ws{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".dt-cardTitle{flex:1;min-width:0;margin:0;font-size:13px;font-weight:600;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}",
+      ".dt-cardNote{display:-webkit-box;width:100%;box-sizing:border-box;min-height:18px;margin:0;padding:2px 4px;border:1px dashed transparent;border-radius:6px;background:none;font-family:inherit;font-size:11.5px;line-height:1.5;color:var(--dsw-alias-label-secondary);text-align:left;cursor:text;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}",
+      ".dt-cardNote:hover{border-color:var(--dsw-alias-border-l2);background:var(--dsw-alias-interactive-bg-hover)}",
+      ".dt-cardNote[data-empty]{color:var(--dsw-alias-label-tertiary);font-style:italic;opacity:0;transition:opacity .12s ease}",
+      ".dt-card:hover .dt-cardNote[data-empty],.dt-card:focus-within .dt-cardNote[data-empty]{opacity:.6}",
+      ".dt-noteInput{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;padding:4px 6px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:6px;background:var(--dsw-specific-input-major);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:1.5;outline:none}",
+      ".dt-cardMeta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      ".dt-ws-wrap{display:inline-flex;flex:none;align-items:center;gap:4px;min-width:0;max-width:52%}",
+      ".dt-ws{min-width:0;overflow:hidden;text-overflow:ellipsis}",
+      ".dt-metaItem{flex:none;font-variant-numeric:tabular-nums}",
+      ".dt-metaSep{flex:none;opacity:.6}",
+      ".dt-metaTime{flex:none;margin-left:auto;padding-left:4px}",
+      "[data-dt-locate]{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px;border-radius:8px;animation:dt-pulse 1.8s ease-out}",
+      "@keyframes dt-pulse{0%{background:var(--dsw-alias-state-business-primary);opacity:.5}100%{background:transparent;opacity:1}}",
       ".dt-cardBtns{display:flex;align-items:center;gap:2px;margin-left:auto}",
       ".dt-iconBtn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:none;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background .12s,color .12s}",
       ".dt-card:hover .dt-iconBtn,.dt-card:focus-within .dt-iconBtn,.dt-iconBtn[data-on]{opacity:1}",
@@ -223,6 +246,14 @@ window.__ModuleLoader__.load({
       "sess.agoHours": "{n} 小时前",
       "sess.agoDays": "{n} 天前",
       "sess.agoMonths": "{n} 个月前",
+      "sess.turns": "{n} 轮",
+      "sess.tokens": "{n} tokens",
+      "sess.notePlaceholder": "点击添加备注",
+      "sess.noteAria": "会话备注",
+      "sess.noteEdit": "编辑备注",
+      "sess.locate": "在侧栏定位",
+      "sess.locateHint": "展开左侧工作区并定位到该会话",
+      "sess.locateFailed": "没有在侧栏找到这个会话，可能已被归档。",
     };
 
     const en = {
@@ -326,6 +357,14 @@ window.__ModuleLoader__.load({
       "sess.agoHours": "{n} h ago",
       "sess.agoDays": "{n} d ago",
       "sess.agoMonths": "{n} mo ago",
+      "sess.turns": "{n} turns",
+      "sess.tokens": "{n} tokens",
+      "sess.notePlaceholder": "Click to add a note",
+      "sess.noteAria": "Session note",
+      "sess.noteEdit": "Edit note",
+      "sess.locate": "Locate in sidebar",
+      "sess.locateHint": "Expand the left workspace list and point at this session",
+      "sess.locateFailed": "This session is not in the sidebar; it may be archived.",
     };
     // #endregion
 
@@ -497,6 +536,69 @@ window.__ModuleLoader__.load({
       return value;
     }
 
+    // #region notes
+    const NOTE_STORE = "dsh-devops-tasks:notes";
+    let noteCache = null;
+
+    /** Read the note map once; storage may be unavailable on a locked shell. */
+    function notes() {
+      if (noteCache !== null) return noteCache;
+      noteCache = {};
+      try {
+        const raw = window.localStorage.getItem(NOTE_STORE);
+        const parsed = raw === null ? null : JSON.parse(raw);
+        if (parsed !== null && typeof parsed === "object") noteCache = parsed;
+      } catch {
+        /* keep the empty map */
+      }
+      return noteCache;
+    }
+
+    /** The note a user attached to one session, or the empty string. */
+    function noteOf(sessionId) {
+      const value = notes()[sessionId];
+      return typeof value === "string" ? value : "";
+    }
+
+    /** Store (or clear) one session's note. */
+    function setNote(sessionId, text) {
+      const map = notes();
+      const next = text.trim();
+      if (next === "") delete map[sessionId];
+      else map[sessionId] = next;
+      try {
+        window.localStorage.setItem(NOTE_STORE, JSON.stringify(map));
+      } catch {
+        /* a full or blocked storage only loses the note */
+      }
+    }
+    // #endregion
+
+    /** Compact token figure: 12800 → "12.8k". */
+    function tokenText(value) {
+      if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "";
+      if (value < 1000) return String(Math.round(value));
+      if (value < 1000000) return (value / 1000).toFixed(value < 10000 ? 1 : 0) + "k";
+      return (value / 1000000).toFixed(1) + "M";
+    }
+
+    /** Total provider tokens carried by a session's tokenUsage projection. */
+    function tokensOf(usage) {
+      if (usage === null || usage === undefined || typeof usage !== "object") return null;
+      const source = usage.totals !== null && typeof usage.totals === "object" ? usage.totals : usage;
+      const fields = ["uncachedInputTokens", "outputTokens", "cacheReadTokens", "cacheWriteTokens"];
+      let total = 0;
+      let seen = false;
+      for (const field of fields) {
+        const part = source[field];
+        if (typeof part === "number" && Number.isFinite(part)) {
+          total += part;
+          seen = true;
+        }
+      }
+      return seen ? total : null;
+    }
+
     /** Tone for a status chip: 进行中-like values get the business accent. */
     function statusTone(row) {
       if (row.stage === "1") return "doing";
@@ -619,6 +721,7 @@ window.__ModuleLoader__.load({
       }
       const ids = Array.isArray(list.ids) ? list.ids : [];
       const byId = list.byId !== null && list.byId !== undefined ? list.byId : {};
+      const projections = list.projectionsBySession !== null && list.projectionsBySession !== undefined ? list.projectionsBySession : {};
       const rows = [];
       for (const id of ids) {
         const summary = byId[id];
@@ -632,6 +735,13 @@ window.__ModuleLoader__.load({
         const status = statuses !== null && statuses !== undefined && typeof statuses.get === "function" ? statuses.get(id) : undefined;
         const rawTitle = summary.blank === true ? "" : String(summary.title === undefined || summary.title === null ? "" : summary.title).trim();
         const pinnedIndex = pinned.has(id) ? pinned.get(id) : Number.MAX_SAFE_INTEGER;
+        // Turns and tokens live in projections; the summary payload excludes
+        // them, so a card shows them once the store has been asked for them.
+        const projection = projections[id];
+        const values = projection !== null && projection !== undefined && projection.values !== null && projection.values !== undefined
+          ? projection.values
+          : (summary.projectionValues !== null && summary.projectionValues !== undefined ? summary.projectionValues : {});
+        const stats = values.sessionStats;
         rows.push({
           id,
           title: rawTitle,
@@ -644,12 +754,83 @@ window.__ModuleLoader__.load({
           updatedAt: typeof summary.updatedAt === "number" ? summary.updatedAt : 0,
           current: summary.retainedBy !== undefined && summary.retainedBy !== null && (summary.retainedBy.mainView ?? 0) > 0,
           running: (status !== undefined && status.running === true) || summary.running === true,
+          turns: stats !== null && stats !== undefined && typeof stats.turns === "number" ? stats.turns : null,
+          tokens: tokensOf(values.tokenUsage),
+          note: noteOf(id),
         });
       }
       // Pinned cards keep the platform's own order (most recent pin first);
       // everything else follows the last-used time, across workspaces.
       rows.sort((left, right) => (left.rank - right.rank) || (right.updatedAt - left.updatedAt));
       return rows;
+    }
+    // #endregion
+
+    // #region sidebar locate
+    /** Escape one value for use inside an attribute selector. */
+    function selectorValue(value) {
+      if (typeof window !== "undefined" && window.CSS !== undefined && typeof window.CSS.escape === "function") {
+        return window.CSS.escape(String(value));
+      }
+      return String(value).replace(/"/g, '\\"');
+    }
+
+    const wait = (ms) => new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+
+    /**
+     * Reveal a session in the sidebar's workspace tree.
+     *
+     * The sidebar keeps its reveal state private to its own search flow, so the
+     * only supported path is the DOM it renders: `data-row-key` identifies the
+     * session rows, the workspace group headers and the "more sessions" buttons,
+     * and clicking those is exactly what a user would do.
+     */
+    async function revealInSidebar(layout, row) {
+      if (typeof document === "undefined") return false;
+      // While a panel is open the sidebar can be collapsed to its rail.
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const area = document.querySelector("[data-sidebar-list-area]");
+        if (area !== null && area.getBoundingClientRect().width > 40) break;
+        if (layout !== null && layout !== undefined && typeof layout.toggleSidebar === "function") layout.toggleSidebar();
+        await wait(140);
+      }
+      const rowSelector = '[data-row-key="session:' + selectorValue(row.id) + '"]';
+      let target = document.querySelector(rowSelector);
+      // The tree is virtualised, so a row only exists in the DOM once its group
+      // is expanded *and* scrolled into view: expand, then poll for the row.
+      for (let attempt = 0; attempt < 30 && target === null; attempt += 1) {
+        const groups = Array.from(document.querySelectorAll('[data-row-key^="workspace:"]'));
+        const group = row.workspace === ""
+          ? groups.find((node) => node.getAttribute("data-row-key") === "workspace:")
+          : groups.find((node) => (node.textContent || "").includes(row.workspace));
+        if (group !== undefined && group !== null && group.getAttribute("aria-expanded") !== "true") {
+          group.click();
+          await wait(120);
+        }
+        const key = group === undefined || group === null || group === ""
+          ? ""
+          : String(group.getAttribute("data-row-key") || "").slice("workspace:".length);
+        const overflow = document.querySelector('[data-row-key="overflow:' + selectorValue(key) + '"]');
+        if (overflow !== null && overflow.getAttribute("aria-expanded") !== "true") {
+          overflow.click();
+          await wait(160);
+        }
+        target = document.querySelector(rowSelector);
+        if (target === null && attempt > 2) {
+          const area = document.querySelector("[data-sidebar-list-area]");
+          if (area !== null) area.scrollTop = area.scrollTop + 160;
+        }
+        if (target === null) await wait(110);
+      }
+      if (target === null) return false;
+      target.scrollIntoView({ block: "center" });
+      target.setAttribute("data-dt-locate", "");
+      setTimeout(() => {
+        if (target !== null) target.removeAttribute("data-dt-locate");
+      }, 1800);
+      return true;
     }
     // #endregion
 
@@ -706,6 +887,31 @@ window.__ModuleLoader__.load({
       return h("svg", common,
         h("circle", { cx: "6", cy: "6", r: "4.6" }),
         h("path", { d: "M3.9 6h4.2" }));
+    }
+
+    /** The shell's own status dot (keeps the running animation), with a fallback. */
+    function StatusDot(props) {
+      const dot = primitives !== null && primitives !== undefined ? primitives.StateDot : undefined;
+      if (typeof dot === "function") return h(dot, { state: props.state });
+      return h(StatusIcon, { state: props.state });
+    }
+
+    /** Crosshair glyph: reveal this session in the sidebar's workspace tree. */
+    function LocateIcon() {
+      return h("svg", {
+        viewBox: "0 0 16 16",
+        width: 14,
+        height: 14,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+      },
+        h("circle", { cx: "8", cy: "8", r: "4.2" }),
+        h("circle", { cx: "8", cy: "8", r: "1.1", fill: "currentColor", stroke: "none" }),
+        h("path", { d: "M8 1.6v2.2M8 12.2v2.2M1.6 8h2.2M12.2 8h2.2" }));
     }
 
     /** Pin glyph: filled when pinned, outline while it is only a hover action. */
@@ -969,22 +1175,103 @@ window.__ModuleLoader__.load({
         item(t("sess.archive"), () => props.onArchive(props.row), { danger: true }));
     }
 
-    /** One session card. */
+    /** Note cell: click to edit, Enter or blur saves, Escape reverts. */
+    function NoteBox(props) {
+      const t = props.t;
+      const [editing, setEditing] = react.useState(false);
+      const [draft, setDraft] = react.useState(props.note);
+      const area = react.useRef(null);
+      react.useEffect(() => {
+        if (!editing) setDraft(props.note);
+      }, [props.note, editing]);
+      react.useEffect(() => {
+        if (editing && area.current !== null) area.current.focus();
+      }, [editing]);
+      const save = () => {
+        setEditing(false);
+        if (draft.trim() === props.note) return;
+        props.onSave(draft);
+      };
+      if (editing) {
+        return h("textarea", {
+          ref: area,
+          className: "dt-noteInput",
+          value: draft,
+          "aria-label": t("sess.noteAria"),
+          placeholder: t("sess.notePlaceholder"),
+          onClick: (event) => event.stopPropagation(),
+          onChange: (event) => setDraft(event.target.value),
+          onBlur: save,
+          onKeyDown: (event) => {
+            // The card itself opens the session on Enter/Space, so the editor
+            // must consume its own keys instead of letting them bubble up.
+            if (event.key === "Escape") {
+              event.stopPropagation();
+              setDraft(props.note);
+              setEditing(false);
+            } else if (event.key === "Enter" && event.shiftKey === false) {
+              event.preventDefault();
+              event.stopPropagation();
+              save();
+            }
+          },
+        });
+      }
+      const empty = props.note === "";
+      return h("div", {
+        className: "dt-cardNote",
+        role: "textbox",
+        tabIndex: 0,
+        "data-empty": empty ? "" : undefined,
+        title: t("sess.noteEdit"),
+        onClick: (event) => {
+          event.stopPropagation();
+          setEditing(true);
+        },
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            event.stopPropagation();
+            setEditing(true);
+          }
+        },
+      }, empty ? t("sess.notePlaceholder") : props.note);
+    }
+
+    /** One session card: status dot, title, note, then workspace and figures. */
     function SessionCard(props) {
       const t = props.t;
       const row = props.row;
       const title = row.title === "" ? t("sess.untitled") : row.title;
       const used = agoOf(t, row.updatedAt);
+      const tokens = row.tokens === null ? "" : tokenText(row.tokens);
+      const meta = [
+        h("span", { key: "ws-wrap", className: "dt-ws-wrap" },
+          h(FolderIcon),
+          h("span", { className: "dt-ws", title: row.cwd === "" ? row.workspace : row.cwd }, row.workspace === "" ? t("sess.ungrouped") : row.workspace)),
+      ];
+      if (row.turns !== null) {
+        meta.push(h("span", { key: "sep-turns", className: "dt-metaSep" }, "·"));
+        meta.push(h("span", { key: "turns", className: "dt-metaItem" }, fill(t("sess.turns"), { n: row.turns })));
+      }
+      if (tokens !== "") {
+        meta.push(h("span", { key: "sep-tokens", className: "dt-metaSep" }, "·"));
+        meta.push(h("span", { key: "tokens", className: "dt-metaItem", title: String(row.tokens) }, fill(t("sess.tokens"), { n: tokens })));
+      }
+      if (used !== "") meta.push(h("span", { key: "used", className: "dt-metaTime" }, used));
       return h("article", {
         className: "dt-card",
         tabIndex: 0,
         role: "button",
         "data-current": row.current ? "" : undefined,
         "data-pinned": row.pinned ? "" : undefined,
+        "data-session-id": row.id,
         "aria-label": title + " · " + row.status.label + (row.workspace === "" ? "" : " · " + row.workspace),
         title: t("sess.openSession"),
         onClick: () => props.onOpen(row),
         onKeyDown: (event) => {
+          // Only the card itself opens the session; inner controls keep their keys.
+          if (event.target !== event.currentTarget) return;
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
             props.onOpen(row);
@@ -992,10 +1279,20 @@ window.__ModuleLoader__.load({
         },
       },
         h("div", { className: "dt-cardTop" },
-          h("span", { className: "dt-status", "data-state": row.status.state },
-            h(StatusIcon, { state: row.status.state }),
-            h("span", null, row.status.label)),
+          h("span", { className: "dt-status", "data-state": row.status.state, title: row.status.label, "aria-label": row.status.label },
+            h(StatusDot, { state: row.status.state })),
+          h("h3", { className: "dt-cardTitle", title }, title),
           h("span", { className: "dt-cardBtns" },
+            h("button", {
+              type: "button",
+              className: "dt-iconBtn dt-locate",
+              title: t("sess.locateHint"),
+              "aria-label": t("sess.locate"),
+              onClick: (event) => {
+                event.stopPropagation();
+                props.onLocate(row);
+              },
+            }, h(LocateIcon)),
             h("button", {
               type: "button",
               className: "dt-iconBtn dt-pin",
@@ -1019,11 +1316,8 @@ window.__ModuleLoader__.load({
                 props.onToggleMenu(row);
               },
             }, h(KebabIcon)))),
-        h("h3", { className: "dt-cardTitle", title }, title),
-        h("div", { className: "dt-cardFoot" },
-          h(FolderIcon),
-          h("span", { className: "dt-ws", title: row.cwd === "" ? row.workspace : row.cwd }, row.workspace === "" ? t("sess.ungrouped") : row.workspace),
-          used === "" ? null : h("span", null, used)),
+        h(NoteBox, { t, note: row.note, onSave: (text) => props.onSaveNote(row, text) }),
+        h("div", { className: "dt-cardMeta" }, meta),
         props.menuOpen ? h(SessionMenu, props.menu) : null);
     }
 
@@ -1091,6 +1385,9 @@ window.__ModuleLoader__.load({
       const [renaming, setRenaming] = react.useState(null);
       const [archiving, setArchiving] = react.useState(null);
       const [toast, setToast] = react.useState(null);
+      // Note edits live in localStorage, so a counter is enough to redraw them.
+      const [, bumpNotes] = react.useState(0);
+      const requested = react.useRef(new Set());
 
       const notify = react.useCallback((text, kind) => {
         setToast({ text, kind: kind === undefined ? "error" : kind });
@@ -1147,13 +1444,50 @@ window.__ModuleLoader__.load({
         }
         successfully(ops.archive(row.id, false));
       };
+      const locate = (row) => {
+        Promise.resolve(ops.locate(row)).then((found) => {
+          if (found !== true) notify(t("sess.locateFailed"));
+        }).catch(fail(t("sess.locateFailed")));
+      };
+      const saveNote = (row, text) => {
+        setNote(row.id, text);
+        bumpNotes((value) => value + 1);
+      };
 
       const needle = query.trim().toLowerCase();
       const visible = rows.filter((row) => {
         if (filter === "ungrouped" && row.workspaceId !== "") return false;
         if (filter !== "all" && filter !== "ungrouped" && row.workspaceId !== filter) return false;
         if (needle === "") return true;
-        return row.title.toLowerCase().includes(needle) || (row.workspace !== "" && row.workspace.toLowerCase().includes(needle));
+        return row.title.toLowerCase().includes(needle)
+          || (row.workspace !== "" && row.workspace.toLowerCase().includes(needle))
+          || (row.note !== "" && row.note.toLowerCase().includes(needle));
+      });
+
+      // Turns and tokens are projections, which the session summary excludes.
+      // Ask the session controller for them lazily, a few cards at a time; the
+      // store then re-renders with the figures filled in.
+      react.useEffect(() => {
+        const service = props.sessions;
+        if (service === null || service === undefined || typeof service.refreshProjections !== "function") return;
+        const pending = visible
+          .filter((row) => row.turns === null && !requested.current.has(row.id))
+          .slice(0, 120);
+        if (pending.length === 0) return;
+        for (const row of pending) requested.current.add(row.id);
+        const queue = pending.slice();
+        const worker = async () => {
+          for (;;) {
+            const row = queue.shift();
+            if (row === undefined) return;
+            try {
+              await service.refreshProjections(row.id);
+            } catch {
+              /* a missing projection only leaves the card without figures */
+            }
+          }
+        };
+        for (let index = 0; index < 4; index += 1) void worker();
       });
 
       const menuProps = (row) => ({
@@ -1206,6 +1540,8 @@ window.__ModuleLoader__.load({
                 menuOpen: menuFor === row.id,
                 onOpen: open,
                 onTogglePin: togglePin,
+                onLocate: locate,
+                onSaveNote: saveNote,
                 onToggleMenu: (target) => setMenuFor((prev) => (prev === target.id ? null : target.id)),
                 menu: menuProps(row),
               }))),
@@ -1318,6 +1654,9 @@ window.__ModuleLoader__.load({
         },
         archive(sessionId, stopActivity) {
           return uiWorkspace.archiveSession(sessionId, { stopActivity: stopActivity === true });
+        },
+        async locate(row) {
+          return revealInSidebar(ctx.layout, row);
         },
       };
 
