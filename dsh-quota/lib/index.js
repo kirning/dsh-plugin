@@ -1,11 +1,88 @@
-// src/index.ts
-import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-
 // src/shared.ts
 var PROVIDER_ID = "midea";
 var API_PREFIX = "/api/company-quota";
+function localDateKey(ms) {
+  const date = new Date(ms);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// src/balance.ts
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+var FORMAT_VERSION = 1;
+var KEEP_DAYS = 120;
+var store;
+var loading;
+var writing = Promise.resolve();
+function storePath() {
+  return join(process.env.DSH_HOME ?? join(homedir(), ".dsh"), "company-quota", "balance-days.json");
+}
+async function ensureLoaded() {
+  if (store !== void 0) return;
+  if (loading === void 0) {
+    loading = (async () => {
+      const days = /* @__PURE__ */ new Map();
+      try {
+        const raw = await readFile(storePath(), "utf8");
+        const parsed = JSON.parse(raw);
+        if (parsed.version === FORMAT_VERSION && parsed.days !== null && typeof parsed.days === "object") {
+          for (const [date, entry] of Object.entries(parsed.days)) {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+            if (typeof entry?.total !== "number" || typeof entry?.remaining !== "number") continue;
+            days.set(date, { at: entry.at ?? 0, total: entry.total, remaining: entry.remaining });
+          }
+        }
+      } catch {
+      }
+      store = days;
+    })();
+  }
+  await loading;
+}
+function persist() {
+  const days = store;
+  if (days === void 0) return Promise.resolve();
+  const cutoff = localDateKey(Date.now() - KEEP_DAYS * 864e5);
+  for (const date of days.keys()) if (date < cutoff) days.delete(date);
+  const payload = { version: FORMAT_VERSION, days: Object.fromEntries([...days.entries()].sort()) };
+  writing = writing.then(async () => {
+    const path = storePath();
+    try {
+      await mkdir(dirname(path), { recursive: true });
+      const tmp = `${path}.tmp`;
+      await writeFile(tmp, JSON.stringify(payload), "utf8");
+      await rename(tmp, path);
+    } catch {
+    }
+  });
+  return writing;
+}
+async function recordBalance(quota, nowMs) {
+  await ensureLoaded();
+  const days = store;
+  if (days === void 0) return;
+  const key = localDateKey(nowMs);
+  const previous = days.get(key);
+  if (previous !== void 0 && previous.total === quota.total && previous.remaining === quota.remaining) return;
+  days.set(key, { at: nowMs, total: quota.total, remaining: quota.remaining });
+  await persist();
+}
+async function dailySpend(nowMs) {
+  await ensureLoaded();
+  const days = store;
+  if (days === void 0) return [];
+  const cutoff = localDateKey(nowMs - KEEP_DAYS * 864e5);
+  const entries = [...days.entries()].filter(([date]) => date >= cutoff).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
+  const rows = [];
+  for (let index = 1; index < entries.length; index += 1) {
+    const [date, current] = entries[index];
+    const previous = entries[index - 1][1];
+    const spent = previous.remaining - current.remaining;
+    rows.push({ date, cost: spent > 0 ? Math.round(spent * 1e6) / 1e6 : 0 });
+  }
+  return rows;
+}
 
 // src/index.ts
 var name = "company-quota";
@@ -17,37 +94,10 @@ var API_KEY_REF = "MIDEA_API_KEY";
 var CACHE_MS = 6e4;
 var ROUTES_CACHE_MS = 6e4;
 var TIMEOUT_MS = 25e3;
-var PRICES = {
-  "glm-5.3-flash-aliyun": [0.4, 1.4, 0.12],
-  "qwen3.8-flash-aliyun": [0.8, 2.7, 0.1],
-  "qwen3.7-plus-aliyun": [1.28, 5.12, 0.26],
-  "deepseek-v4-flash-deepseek": [2, 8, 0.04],
-  "deepseek-v4-flash-vision-exp-deepseek": [2, 8, 0.04],
-  "glm-5.2-aliyun": [4, 14, 1],
-  "qwen3.7-max-aliyun": [6, 18, 2],
-  "deepseek-v4-pro-deepseek": [9, 27, 0.3],
-  "qwen3.8-max-aliyun": [12, 36, 1.5],
-  "kimi-k3-aliyun": [20, 100, 2]
-};
+var SAMPLE_MS = 15 * 6e4;
 var quotaCache;
 var quotaInflight;
 var routesCache;
-function dshHome() {
-  return process.env.DSH_HOME ?? join(homedir(), ".dsh");
-}
-function localDateKey(ms) {
-  const date = new Date(ms);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-function modelCost(model, totals) {
-  const key = model.slice(model.lastIndexOf("/") + 1);
-  const price = PRICES[key];
-  if (price === void 0) return 0;
-  return (totals.inputTokens * price[0] + totals.outputTokens * price[1] + totals.cacheReadTokens * price[2]) / 1e6;
-}
-function totalTokens(totals) {
-  return totals.inputTokens + totals.outputTokens + totals.cacheReadTokens + totals.cacheWriteTokens;
-}
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -144,11 +194,6 @@ function resolveCompanyRoutes(ctx) {
   routesCache = { at: Date.now(), routes: resolved };
   return resolved;
 }
-function ledgerRouteIds(routes) {
-  const ids = /* @__PURE__ */ new Set([PROVIDER_ID]);
-  for (const route of routes) ids.add(route.id);
-  return ids;
-}
 function quotaUrlFor(routes) {
   const baseURL = routes[0]?.baseURL;
   if (baseURL !== void 0) {
@@ -158,39 +203,6 @@ function quotaUrlFor(routes) {
     }
   }
   return QUOTA_URL;
-}
-async function readDaily(routeIds) {
-  let raw;
-  try {
-    raw = await readFile(join(dshHome(), "dsh-usage", "usage-ledger.json"), "utf8");
-  } catch {
-    return [];
-  }
-  let doc;
-  try {
-    doc = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-  const days = doc.days ?? {};
-  const rows = [];
-  for (const date of Object.keys(days).sort()) {
-    const buckets = days[date];
-    let tokens = 0;
-    let calls = 0;
-    let cost = 0;
-    for (const id of routeIds) {
-      const models = buckets?.[id];
-      if (models === void 0) continue;
-      for (const [model, totals] of Object.entries(models)) {
-        tokens += totalTokens(totals);
-        calls += totals.calls ?? 0;
-        cost += modelCost(model, totals);
-      }
-    }
-    rows.push({ date, tokens, calls, cost: Math.round(cost * 1e6) / 1e6 });
-  }
-  return rows;
 }
 async function resolveApiKey(ctx, ref) {
   const credentials = serviceOf(ctx, "credentials");
@@ -265,7 +277,9 @@ function refreshQuota(ctx, routes) {
         };
         return;
       }
-      quotaCache = { at: Date.now(), quota: await fetchQuota(apiKey, quotaUrlFor(routes)) };
+      const quota = await fetchQuota(apiKey, quotaUrlFor(routes));
+      quotaCache = { at: Date.now(), quota };
+      await recordBalance(quota, Date.now());
     } catch (failure) {
       const message = failure instanceof Error && (failure.name === "TimeoutError" || failure.name === "AbortError") ? `\u989D\u5EA6\u63A5\u53E3\u8D85\u65F6\uFF08${TIMEOUT_MS / 1e3}s\uFF09` : failure instanceof Error ? failure.message : String(failure);
       quotaCache = {
@@ -282,10 +296,6 @@ function refreshQuota(ctx, routes) {
 async function overview(ctx, force) {
   const now = Date.now();
   const routes = resolveCompanyRoutes(ctx);
-  const routeIds = ledgerRouteIds(routes);
-  const daily = await readDaily(routeIds);
-  const todayKey = localDateKey(now);
-  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, tokens: 0, calls: 0, cost: 0 };
   const cached = quotaCache;
   const fresh = cached !== void 0 && now - cached.at < CACHE_MS;
   if (force || cached === void 0) {
@@ -296,11 +306,13 @@ async function overview(ctx, force) {
   const current = quotaCache;
   const quota = current?.quota;
   const error = current?.error;
+  const daily = await dailySpend(now);
+  const todayKey = localDateKey(now);
+  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 };
   const forecast = quota === void 0 ? void 0 : forecastFrom(quota, now);
   return {
     updatedAt: now,
     provider: routes[0]?.id ?? PROVIDER_ID,
-    providerIds: [...routeIds].sort(),
     displayName: "\u516C\u53F8",
     userId: MIP_USER_ID,
     ...quota !== void 0 ? { quota } : {},
@@ -359,6 +371,19 @@ function apply(ctx) {
       }
     }
   }, "dsh-plugin-company-quota: routes");
+  const sampleOnce = () => {
+    const cached = quotaCache;
+    if (cached !== void 0 && Date.now() - cached.at < CACHE_MS) return;
+    void refreshQuota(ctx, resolveCompanyRoutes(ctx));
+  };
+  const timer = setInterval(sampleOnce, SAMPLE_MS);
+  timer.unref?.();
+  const kickoff = setTimeout(sampleOnce, 5e3);
+  kickoff.unref?.();
+  ctx.effect(() => () => {
+    clearInterval(timer);
+    clearTimeout(kickoff);
+  }, "dsh-plugin-company-quota: sampling");
 }
 export {
   apply,

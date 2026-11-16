@@ -32,16 +32,6 @@ var import_react = require("react");
 var import_jsx_runtime = require("react/jsx-runtime");
 var POLL_MS = 6e4;
 var RETRY_MS = 1e4;
-function formatTokens(value) {
-  if (!Number.isFinite(value) || value <= 0) return "0";
-  if (value < 1e3) return String(Math.round(value));
-  if (value < 1e6) return trimNumber(value / 1e3) + "k";
-  if (value < 1e9) return trimNumber(value / 1e6) + "M";
-  return trimNumber(value / 1e9) + "B";
-}
-function trimNumber(value) {
-  return value >= 100 ? String(Math.round(value)) : value.toFixed(value >= 10 ? 1 : 2).replace(/\.?0+$/, "");
-}
 function money(value) {
   if (!Number.isFinite(value)) return "\xA50.00";
   return "\xA5" + (value < 0.01 ? value.toFixed(4) : value.toFixed(2));
@@ -61,11 +51,9 @@ function Calendar(props) {
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let monthCost = 0;
-  let monthTokens = 0;
   for (const row of daily) {
     if (row.date.slice(0, 7) !== monthKey) continue;
     monthCost += row.cost;
-    monthTokens += row.tokens;
   }
   const cells = [];
   for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
@@ -87,7 +75,6 @@ function Calendar(props) {
       const key = dateKey(year, month, day);
       const row = byDate.get(key);
       const cost = row === void 0 ? 0 : row.cost;
-      const tokens = row === void 0 ? 0 : row.tokens;
       const isEnd = showForecast && !forecast.monthly && forecast.predictedKey === key;
       const isLeft = showForecast && forecast.monthly && forecast.lastKey === key;
       const cellStyle = {
@@ -96,15 +83,14 @@ function Calendar(props) {
       };
       return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: cellStyle, title: cost > 0 ? `${key} ${money(cost)}` : key, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellDay, children: day }),
-        (cost > 0 || tokens > 0 || isEnd || isLeft) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.cellBody, children: [
+        (cost > 0 || isEnd || isLeft) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.cellBody, children: [
           cost > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellCost, children: money(cost) }),
-          cost > 0 && tokens > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellTokens, children: formatTokens(tokens) }),
           isEnd && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.badgeEnd, children: t("badgeEnd") }),
           isLeft && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.badgeLeft, children: t("badgeLeft", { left: money(forecast.projectedLeft) }) })
         ] })
       ] }, key);
     }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: daily.length === 0 ? t("none") : t("monthTotal", { cost: money(monthCost), tokens: formatTokens(monthTokens) }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: daily.length === 0 ? t("none") : t("monthTotal", { cost: money(monthCost) }) }),
     showForecast && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: forecast.monthly ? t("forecastLeft", { daily: money(forecast.daily), left: money(forecast.projectedLeft) }) : t("forecastEnd", { daily: money(forecast.daily), date: forecast.predictedKey }) })
   ] });
 }
@@ -176,7 +162,7 @@ function CompanyQuotaSection(props) {
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.stat, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statLabel, children: t("today") }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statValue, children: doc === null ? "\u2014" : `${money(doc.today.cost)} \xB7 ${formatTokens(doc.today.tokens)}` })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statValue, children: doc === null ? "\u2014" : money(doc.today.cost) })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.stat, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statLabel, children: t("reset", { date: quota?.resetsAt === void 0 ? "\u2014" : new Date(quota.resetsAt).toLocaleDateString() }) }) })
     ] }),
@@ -255,7 +241,7 @@ var NS = "company-quota";
 var zh = {
   "nav": "\u516C\u53F8\u989D\u5EA6",
   "title": "\u516C\u53F8\u989D\u5EA6",
-  "hint": "\u6BCF\u683C\u4E00\u5929\uFF1A\u53F3\u4E0A\u89D2\u4E3A\u65E5\u671F\uFF0C\u4E2D\u95F4\u662F\u5F53\u5929\u516C\u53F8\u6A21\u578B\u7684\u6D88\u8D39\u91D1\u989D\u4E0E tokens\uFF1B0 \u4E0D\u663E\u793A\uFF0C\u53EF\u7FFB\u6708\u3002",
+  "hint": "\u6BCF\u683C\u4E00\u5929\uFF1A\u53F3\u4E0A\u89D2\u4E3A\u65E5\u671F\uFF0C\u4E2D\u95F4\u662F\u5F53\u5929\u7684\u6D88\u8D39\u91D1\u989D\uFF08\u6309\u4F59\u989D\u5DEE\u8BA1\u7B97\uFF09\uFF1B0 \u4E0D\u663E\u793A\uFF0C\u53EF\u7FFB\u6708\u3002",
   "loading": "\u6B63\u5728\u52A0\u8F7D\u989D\u5EA6\u2026",
   "error": "\u67E5\u8BE2\u5931\u8D25\uFF1A{error}",
   "noQuota": "\u989D\u5EA6\u4E0D\u53EF\u7528",
@@ -267,8 +253,8 @@ var zh = {
   "refresh": "\u5237\u65B0",
   "refreshing": "\u5237\u65B0\u4E2D\u2026",
   "updated": "\u66F4\u65B0\u4E8E {time}",
-  "monthTotal": "\u672C\u6708\u5408\u8BA1 {cost} \xB7 {tokens} tokens",
-  "none": "\u6682\u65E0\u516C\u53F8\u6A21\u578B\u7528\u91CF\u6570\u636E\uFF08\u7EDF\u8BA1\u81EA\u63D2\u4EF6\u542F\u7528\u8D77\uFF09",
+  "monthTotal": "\u672C\u6708\u5408\u8BA1 {cost}",
+  "none": "\u6682\u65E0\u4F59\u989D\u5FEB\u7167\uFF08\u5F00\u542F\u63D2\u4EF6\u540E\u6BCF\u5929\u81F3\u5C11\u91C7\u4E00\u6B21\u4F59\u989D\uFF09",
   "prev": "\u4E0A\u4E00\u6708",
   "next": "\u4E0B\u4E00\u6708",
   "weekdays": "\u4E00,\u4E8C,\u4E09,\u56DB,\u4E94,\u516D,\u65E5",
@@ -280,7 +266,7 @@ var zh = {
 var en = {
   "nav": "Company Quota",
   "title": "Company Quota",
-  "hint": "One cell per day: the date in the corner, that day's company-model spend and tokens in the middle; zero days stay blank and months can be paged.",
+  "hint": "One cell per day: the date in the corner, that day's spend (balance difference) in the middle; zero days stay blank and months can be paged.",
   "loading": "Loading quota\u2026",
   "error": "Query failed: {error}",
   "noQuota": "Quota unavailable",
@@ -292,8 +278,8 @@ var en = {
   "refresh": "Refresh",
   "refreshing": "Refreshing\u2026",
   "updated": "Updated {time}",
-  "monthTotal": "Month total {cost} \xB7 {tokens} tokens",
-  "none": "No company usage yet (counting starts when the plugin is enabled)",
+  "monthTotal": "Month total {cost}",
+  "none": "No balance snapshots yet (the balance is sampled daily once the plugin runs)",
   "prev": "Previous month",
   "next": "Next month",
   "weekdays": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",

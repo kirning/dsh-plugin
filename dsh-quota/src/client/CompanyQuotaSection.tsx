@@ -1,8 +1,8 @@
 /**
- * 「公司额度」设置分区：额度汇总（剩余/已用/重置）、逐日消费日历（金额 + tokens、
+ * 「公司额度」设置分区：额度汇总（剩余/已用/重置）、逐日消费日历（金额、
  * 0 不显示、可翻月）与额度耗尽预测（耗尽日标记，或月末预计剩余）。
  *
- * 数据全部来自宿主半的 `api/company-quota/overview` —— 浏览器不做任何计价，
+ * 逐日消费由宿主半按余额差不出来（相邻两笔余额快照相减），浏览器不做任何计价，
  * API key 也从不下发到浏览器。
  * @module dsh-plugin-company-quota/client/CompanyQuotaSection
  */
@@ -20,19 +20,6 @@ const POLL_MS = 60_000
 
 /** 还没有额度数字时的重试周期（公司网关偶发慢，别让界面等一分钟）。 */
 const RETRY_MS = 10_000
-
-/** 紧凑 token 计数：1234567 -> 1.23M。 */
-function formatTokens(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) return '0'
-  if (value < 1000) return String(Math.round(value))
-  if (value < 1_000_000) return trimNumber(value / 1000) + 'k'
-  if (value < 1_000_000_000) return trimNumber(value / 1_000_000) + 'M'
-  return trimNumber(value / 1_000_000_000) + 'B'
-}
-
-function trimNumber(value: number): string {
-  return value >= 100 ? String(Math.round(value)) : value.toFixed(value >= 10 ? 1 : 2).replace(/\.?0+$/, '')
-}
 
 /** 金额：小额保留 4 位，其余 2 位。 */
 function money(value: number): string {
@@ -65,11 +52,9 @@ function Calendar(props: {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   let monthCost = 0
-  let monthTokens = 0
   for (const row of daily) {
     if (row.date.slice(0, 7) !== monthKey) continue
     monthCost += row.cost
-    monthTokens += row.tokens
   }
 
   const cells: Array<number | null> = []
@@ -100,7 +85,6 @@ function Calendar(props: {
           const key = dateKey(year, month, day)
           const row = byDate.get(key)
           const cost = row === undefined ? 0 : row.cost
-          const tokens = row === undefined ? 0 : row.tokens
           const isEnd = showForecast && !forecast.monthly && forecast.predictedKey === key
           const isLeft = showForecast && forecast.monthly && forecast.lastKey === key
           const cellStyle: CSSProperties = {
@@ -110,10 +94,9 @@ function Calendar(props: {
           return (
             <span key={key} style={cellStyle} title={cost > 0 ? `${key} ${money(cost)}` : key}>
               <span style={styles.cellDay}>{day}</span>
-              {(cost > 0 || tokens > 0 || isEnd || isLeft) && (
+              {(cost > 0 || isEnd || isLeft) && (
                 <span style={styles.cellBody}>
                   {cost > 0 && <span style={styles.cellCost}>{money(cost)}</span>}
-                  {cost > 0 && tokens > 0 && <span style={styles.cellTokens}>{formatTokens(tokens)}</span>}
                   {isEnd && <span style={styles.badgeEnd}>{t('badgeEnd')}</span>}
                   {isLeft && <span style={styles.badgeLeft}>{t('badgeLeft', { left: money(forecast.projectedLeft) })}</span>}
                 </span>
@@ -124,7 +107,7 @@ function Calendar(props: {
       </div>
 
       <div style={styles.muted}>
-        {daily.length === 0 ? t('none') : t('monthTotal', { cost: money(monthCost), tokens: formatTokens(monthTokens) })}
+        {daily.length === 0 ? t('none') : t('monthTotal', { cost: money(monthCost) })}
       </div>
       {showForecast && (
         <div style={styles.muted}>
@@ -224,7 +207,7 @@ export function CompanyQuotaSection(props: CompanyQuotaSectionProps): ReactNode 
         <span style={styles.stat}>
           <span style={styles.statLabel}>{t('today')}</span>
           <span style={styles.statValue}>
-            {doc === null ? '—' : `${money(doc.today.cost)} · ${formatTokens(doc.today.tokens)}`}
+            {doc === null ? '—' : money(doc.today.cost)}
           </span>
         </span>
         <span style={styles.stat}>

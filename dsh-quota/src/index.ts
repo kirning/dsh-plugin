@@ -2,8 +2,8 @@
  * 「公司额度」插件宿主半。
  *
  * 把两处事实合成一个 overview 文档，供浏览器半的设置分区渲染：
- *  - 逐日用量：$DSH_HOME/dsh-usage/usage-ledger.json 里公司路由的
- *    分桶数据（只把它当磁盘数据读，不引用 @linxin666/dsh-usage 的代码）；
+ *  - 逐日消费：额度接口自己的余额做差（见 ./balance.ts）—— 某天花了多少 =
+ *    上一次余额 − 当天余额，不看 token、不查价目表、不扫会话日志；
  *  - 当月额度：公司 token-kanban 的 member-quota 接口，Bearer = 公司路由的
  *    apiKeyEnv 凭据，经宿主 credentials 服务解析 —— API key 永不进入浏览器。
  *
@@ -11,22 +11,27 @@
  * loader entries 两级兜底），枚举 providers，凡 baseURL 命中公司网关前缀
  * （默认 https://ai.meicloud.com/，可用 COMPANY_URL_PREFIX 覆盖）的都算
  * 公司路由；额度接口的 origin 也随之从 baseURL 推导。一个都没匹配到时
- * 退回历史 id `midea` + `MIDEA_API_KEY` + 硬编码地址。台账聚合永远包含
- * 历史桶 `midea`，路由改名后旧数据不丢。
+ * 退回历史 id `midea` + `MIDEA_API_KEY` + 硬编码地址。
  *
  * 路由：
  *  - GET  /api/company-quota/overview  读缓存（60s）或取一次额度
  *  - POST /api/company-quota/refresh   强制重取额度
  * @module dsh-plugin-company-quota
  */
-import { readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
-import { join } from 'node:path'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
-import { API_PREFIX, PROVIDER_ID, type DailyRow, type Forecast, type OverviewDocument, type QuotaFact } from './shared.ts'
+import {
+  API_PREFIX,
+  PROVIDER_ID,
+  localDateKey,
+  type DailyRow,
+  type Forecast,
+  type OverviewDocument,
+  type QuotaFact,
+} from './shared.ts'
+import { dailySpend, recordBalance } from './balance.ts'
 
 export const name = 'company-quota'
 export const inject = ['webServer']
@@ -52,31 +57,8 @@ const ROUTES_CACHE_MS = 60_000
 /** 单次额度请求超时：公司网关偶发慢（实测 6s 上下），放宽到 25s。 */
 const TIMEOUT_MS = 25_000
 
-/**
- * 公司网关价目表（CNY / 百万 tokens）：[输入, 输出, 缓存命中]。
- * 未列入的模型（历史 free / token-plan id）按不计费处理。
- */
-const PRICES: Readonly<Record<string, readonly [number, number, number]>> = {
-  'glm-5.3-flash-aliyun': [0.4, 1.4, 0.12],
-  'qwen3.8-flash-aliyun': [0.8, 2.7, 0.1],
-  'qwen3.7-plus-aliyun': [1.28, 5.12, 0.26],
-  'deepseek-v4-flash-deepseek': [2, 8, 0.04],
-  'deepseek-v4-flash-vision-exp-deepseek': [2, 8, 0.04],
-  'glm-5.2-aliyun': [4, 14, 1],
-  'qwen3.7-max-aliyun': [6, 18, 2],
-  'deepseek-v4-pro-deepseek': [9, 27, 0.3],
-  'qwen3.8-max-aliyun': [12, 36, 1.5],
-  'kimi-k3-aliyun': [20, 100, 2],
-}
-
-/** 台账里一个模型一天的分桶。 */
-interface TokenTotals {
-  inputTokens: number
-  outputTokens: number
-  cacheReadTokens: number
-  cacheWriteTokens: number
-  calls: number
-}
+/** 后台采样周期：界面没打开也给当天留余额快照，逐日差才不会断档。 */
+const SAMPLE_MS = 15 * 60_000
 
 /** 宿主 credentials 服务的结构面（避免引入整条 dsh-credentials 类型链）。 */
 interface CredentialsService {
@@ -91,7 +73,7 @@ interface PiAiProfile {
 
 /** 一条识别出的公司路由。 */
 interface CompanyRoute {
-  /** 路由 id = 台账分桶键（llm-pi-ai providers 的键名）。 */
+  /** 路由 id（llm-pi-ai providers 的键名）。 */
   id: string
   /** 该路由的凭据引用名（apiKeyEnv）。 */
   apiKeyEnv?: string
@@ -107,30 +89,6 @@ let quotaInflight: Promise<void> | undefined
 
 /** 最近一次路由识别结果。 */
 let routesCache: { at: number; routes: CompanyRoute[] } | undefined
-
-/** DSH 主目录。 */
-function dshHome(): string {
-  return process.env.DSH_HOME ?? join(homedir(), '.dsh')
-}
-
-/** 本地日期键 `YYYY-MM-DD`。 */
-function localDateKey(ms: number): string {
-  const date = new Date(ms)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
-/** 一个模型当天的金额（价目表未收录时按 0）。 */
-function modelCost(model: string, totals: TokenTotals): number {
-  const key = model.slice(model.lastIndexOf('/') + 1)
-  const price = PRICES[key]
-  if (price === undefined) return 0
-  return (totals.inputTokens * price[0] + totals.outputTokens * price[1] + totals.cacheReadTokens * price[2]) / 1e6
-}
-
-/** 分桶 tokens 合计。 */
-function totalTokens(totals: TokenTotals): number {
-  return totals.inputTokens + totals.outputTokens + totals.cacheReadTokens + totals.cacheWriteTokens
-}
 
 /** 是否普通对象（数组不算）。 */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -252,13 +210,6 @@ function resolveCompanyRoutes(ctx: Context): CompanyRoute[] {
   return resolved
 }
 
-/** 本次聚合覆盖的台账分桶键：识别出的路由 + 历史桶 `midea`（改名前的数据）。 */
-function ledgerRouteIds(routes: CompanyRoute[]): Set<string> {
-  const ids = new Set<string>([PROVIDER_ID])
-  for (const route of routes) ids.add(route.id)
-  return ids
-}
-
 /** 额度接口地址：优先用识别出的公司 baseURL 的 origin，识别不出用兜底地址。 */
 function quotaUrlFor(routes: CompanyRoute[]): string {
   const baseURL = routes[0]?.baseURL
@@ -270,41 +221,6 @@ function quotaUrlFor(routes: CompanyRoute[]): string {
     }
   }
   return QUOTA_URL
-}
-
-/** 读台账并折叠出公司路由的逐日用量；文件缺失或损坏时返回空数组。 */
-async function readDaily(routeIds: ReadonlySet<string>): Promise<DailyRow[]> {
-  let raw: string
-  try {
-    raw = await readFile(join(dshHome(), 'dsh-usage', 'usage-ledger.json'), 'utf8')
-  } catch {
-    return []
-  }
-  let doc: { days?: Record<string, Record<string, Record<string, TokenTotals>>> }
-  try {
-    doc = JSON.parse(raw) as typeof doc
-  } catch {
-    return []
-  }
-  const days = doc.days ?? {}
-  const rows: DailyRow[] = []
-  for (const date of Object.keys(days).sort()) {
-    const buckets = days[date]
-    let tokens = 0
-    let calls = 0
-    let cost = 0
-    for (const id of routeIds) {
-      const models = buckets?.[id]
-      if (models === undefined) continue
-      for (const [model, totals] of Object.entries(models)) {
-        tokens += totalTokens(totals)
-        calls += totals.calls ?? 0
-        cost += modelCost(model, totals)
-      }
-    }
-    rows.push({ date, tokens, calls, cost: Math.round(cost * 1e6) / 1e6 })
-  }
-  return rows
 }
 
 /** 经 credentials 服务解析指定引用名的 API key。 */
@@ -394,7 +310,10 @@ function refreshQuota(ctx: Context, routes: CompanyRoute[]): Promise<void> {
         }
         return
       }
-      quotaCache = { at: Date.now(), quota: await fetchQuota(apiKey, quotaUrlFor(routes)) }
+      const quota = await fetchQuota(apiKey, quotaUrlFor(routes))
+      quotaCache = { at: Date.now(), quota }
+      // 顺手记一笔当天余额快照：逐日消费就是相邻快照的差。
+      await recordBalance(quota, Date.now())
     } catch (failure) {
       const message = failure instanceof Error && (failure.name === 'TimeoutError' || failure.name === 'AbortError')
         ? `额度接口超时（${TIMEOUT_MS / 1000}s）`
@@ -415,10 +334,6 @@ function refreshQuota(ctx: Context, routes: CompanyRoute[]): Promise<void> {
 async function overview(ctx: Context, force: boolean): Promise<OverviewDocument> {
   const now = Date.now()
   const routes = resolveCompanyRoutes(ctx)
-  const routeIds = ledgerRouteIds(routes)
-  const daily = await readDaily(routeIds)
-  const todayKey = localDateKey(now)
-  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, tokens: 0, calls: 0, cost: 0 }
 
   const cached = quotaCache
   const fresh = cached !== undefined && now - cached.at < CACHE_MS
@@ -433,11 +348,14 @@ async function overview(ctx: Context, force: boolean): Promise<OverviewDocument>
   const quota = current?.quota
   const error = current?.error
 
+  const daily = await dailySpend(now)
+  const todayKey = localDateKey(now)
+  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 }
+
   const forecast = quota === undefined ? undefined : forecastFrom(quota, now)
   return {
     updatedAt: now,
     provider: routes[0]?.id ?? PROVIDER_ID,
-    providerIds: [...routeIds].sort(),
     displayName: '公司',
     userId: MIP_USER_ID,
     ...(quota !== undefined ? { quota } : {}),
@@ -496,7 +414,7 @@ function refreshRoute(ctx: Context): WebRoute {
 }
 
 /**
- * 宿主插件主体：注册额度路由。
+ * 宿主插件主体：注册额度路由 + 后台余额采样。
  * @param ctx - 宿主根上下文。
  */
 export function apply(ctx: Context): void {
@@ -510,4 +428,21 @@ export function apply(ctx: Context): void {
       }
     }
   }, 'dsh-plugin-company-quota: routes')
+
+  // 后台采样：界面没打开也留当天的余额快照，逐日差才不会断档。
+  // 额度还在 60s 缓存里时不重复发请求。
+  const sampleOnce = (): void => {
+    const cached = quotaCache
+    if (cached !== undefined && Date.now() - cached.at < CACHE_MS) return
+    void refreshQuota(ctx, resolveCompanyRoutes(ctx))
+  }
+  const timer = setInterval(sampleOnce, SAMPLE_MS)
+  timer.unref?.()
+  // 启动后尽快采一笔：否则「今天」的第一笔快照要等到界面被打开。
+  const kickoff = setTimeout(sampleOnce, 5_000)
+  kickoff.unref?.()
+  ctx.effect(() => () => {
+    clearInterval(timer)
+    clearTimeout(kickoff)
+  }, 'dsh-plugin-company-quota: sampling')
 }
