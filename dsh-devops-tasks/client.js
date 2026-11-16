@@ -16,13 +16,17 @@ window.__ModuleLoader__.load({
 
     // #region styles
     const CSS = [
-      ".dt-panel{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;min-width:0;padding:14px 16px 16px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family)}",
+      ".dt-panel{position:relative;display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;min-width:0;padding:14px 16px 16px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--dsw-font-family)}",
       ".dt-header{display:flex;flex:none;align-items:center;gap:10px}",
       ".dt-title{flex:1;margin:0;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
       ".dt-badge{border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:1px 8px;font-size:11px;line-height:1.6;color:var(--dsw-alias-label-secondary);white-space:nowrap}",
       ".dt-badge[data-state=ok]{color:var(--dsw-alias-state-success-primary);border-color:var(--dsw-alias-state-success-primary)}",
       ".dt-badge[data-state=warn]{color:var(--dsw-alias-state-warn-primary);border-color:var(--dsw-alias-state-warn-primary)}",
       ".dt-badge[data-state=err]{color:var(--dsw-alias-state-error-primary);border-color:var(--dsw-alias-state-error-primary)}",
+      ".dt-seg{display:inline-flex;flex:none;gap:2px;padding:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-layer-2)}",
+      ".dt-segBtn{background:none;border:none;border-radius:7px;padding:4px 12px;font-family:inherit;font-size:12.5px;color:var(--dsw-alias-label-secondary);cursor:pointer;white-space:nowrap}",
+      ".dt-segBtn:hover{color:var(--dsw-alias-label-primary)}",
+      ".dt-segBtn[data-active]{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-weight:600}",
       ".dt-tiles{display:grid;flex:none;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}",
       ".dt-tile{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-2);cursor:pointer;text-align:left;font-family:inherit;color:inherit}",
       ".dt-tile:hover{background:var(--dsw-alias-interactive-bg-hover)}",
@@ -36,6 +40,7 @@ window.__ModuleLoader__.load({
       ".dt-input{background:var(--dsw-specific-input-major);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 10px;font-family:inherit;font-size:13px;color:var(--dsw-alias-label-primary);outline:none;min-width:180px}",
       ".dt-input:focus{border-color:var(--dsw-alias-state-business-primary)}",
       ".dt-input::placeholder{color:var(--dsw-alias-label-tertiary)}",
+      ".dt-select{background:var(--dsw-specific-input-major);border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:12.5px;color:var(--dsw-alias-label-primary);outline:none;max-width:220px}",
       ".dt-btn{background:none;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 12px;font-family:inherit;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer;white-space:nowrap}",
       ".dt-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}",
       ".dt-btn:disabled{opacity:.45;cursor:default}",
@@ -48,6 +53,7 @@ window.__ModuleLoader__.load({
       ".dt-table tbody tr:hover td{background:var(--dsw-alias-interactive-bg-hover)}",
       ".dt-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}",
       ".dt-muted{color:var(--dsw-alias-label-tertiary)}",
+      ".dt-num{font-variant-numeric:tabular-nums}",
       ".dt-empty{padding:28px 12px;text-align:center;color:var(--dsw-alias-label-tertiary);font-size:12.5px;line-height:1.6}",
       ".dt-chip{display:inline-block;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:0 7px;font-size:11px;line-height:1.7;color:var(--dsw-alias-label-secondary);white-space:nowrap}",
       ".dt-chip[data-tone=doing]{color:var(--dsw-alias-state-business-primary);border-color:var(--dsw-alias-state-business-primary)}",
@@ -64,6 +70,38 @@ window.__ModuleLoader__.load({
       ".dt-spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--dsw-alias-state-business-primary);border-top-color:transparent;border-radius:50%;vertical-align:-1px;animation:dt-spin .8s linear infinite}",
       "@keyframes dt-spin{to{transform:rotate(360deg)}}",
       ".dt-footer{flex:none;font-size:11.5px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}",
+      // Sessions tab: a responsive grid of cards.
+      ".dt-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px;align-content:start}",
+      ".dt-card{position:relative;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-2);cursor:pointer;min-width:0;text-align:left;font-family:inherit;color:inherit}",
+      ".dt-card:hover{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-l2)}",
+      ".dt-card:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:1px}",
+      ".dt-card[data-current]{border-color:var(--dsw-alias-state-business-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-state-business-primary)}",
+      ".dt-cardTop{display:flex;align-items:center;gap:6px;min-height:20px;min-width:0}",
+      ".dt-status{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}",
+      ".dt-status[data-state=ongoing]{color:var(--dsw-alias-state-business-primary)}",
+      ".dt-status[data-state=warning]{color:var(--dsw-alias-state-warn-primary)}",
+      ".dt-status[data-state=done]{color:var(--dsw-alias-state-success-primary)}",
+      ".dt-status[data-state=idle]{color:var(--dsw-alias-label-tertiary)}",
+      ".dt-cardTitle{margin:0;font-size:13px;font-weight:600;line-height:1.4;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;min-height:2.8em}",
+      ".dt-cardFoot{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0}",
+      ".dt-ws{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+      ".dt-cardBtns{display:flex;align-items:center;gap:2px;margin-left:auto}",
+      ".dt-iconBtn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:none;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background .12s,color .12s}",
+      ".dt-card:hover .dt-iconBtn,.dt-card:focus-within .dt-iconBtn,.dt-iconBtn[data-on]{opacity:1}",
+      ".dt-iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
+      ".dt-iconBtn[data-on]{color:var(--dsw-alias-state-business-primary)}",
+      ".dt-menu{position:absolute;right:8px;top:34px;z-index:20;min-width:158px;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;cursor:default}",
+      ".dt-menuItem{display:block;width:100%;text-align:left;background:none;border:none;border-radius:6px;padding:6px 8px;font-family:inherit;font-size:12.5px;color:var(--dsw-alias-label-primary);cursor:pointer;white-space:nowrap}",
+      ".dt-menuItem:hover{background:var(--dsw-alias-interactive-bg-hover)}",
+      ".dt-menuItem[data-danger]{color:var(--dsw-alias-state-error-primary)}",
+      ".dt-menuSep{height:1px;margin:4px 2px;background:var(--dsw-alias-separator-primary)}",
+      ".dt-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.36)}",
+      ".dt-dialog{width:min(420px,92vw);padding:16px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);display:flex;flex-direction:column;gap:10px;box-shadow:0 16px 48px rgba(0,0,0,.32)}",
+      ".dt-dialogTitle{margin:0;font-size:14px;font-weight:700}",
+      ".dt-dialogBody{font-size:12.5px;color:var(--dsw-alias-label-secondary);line-height:1.6;overflow-wrap:anywhere}",
+      ".dt-dialogRow{display:flex;justify-content:flex-end;gap:8px}",
+      ".dt-toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:40;max-width:80%;padding:6px 14px;border-radius:999px;border:1px solid var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-bg-layer-2);font-size:12px;overflow-wrap:anywhere}",
+      ".dt-toast[data-kind=ok]{border-color:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-state-success-primary)}",
     ].join("");
 
     /** Install the stylesheet once and return its disposer. */
@@ -84,9 +122,11 @@ window.__ModuleLoader__.load({
 
     // #region locale
     const zh = {
-      "entry.label": "我的 DevOps",
-      "panel.title": "我的 DevOps",
+      "entry.label": "我的工作台",
+      "panel.title": "我的工作台",
       "panel.back": "返回对话",
+      "tab.sessions": "会话管理",
+      "tab.devops": "Devops 管理",
       "common.loading": "加载中…",
       "common.refresh": "刷新",
       "common.search": "搜索编号或标题",
@@ -105,6 +145,7 @@ window.__ModuleLoader__.load({
       "col.type": "类型",
       "col.status": "状态",
       "col.priority": "优先级",
+      "col.points": "任务点数",
       "col.end": "截止",
       "col.system": "所属系统",
       "col.reviewKind": "评审类型",
@@ -139,12 +180,57 @@ window.__ModuleLoader__.load({
       "cat.APPROVE_PROCESS": "审批流程",
       "cat.SHARED_TEST_CASE": "共享用例",
       "cat.ALL": "全部",
+      // Sessions tab.
+      "sess.empty": "本机还没有任何会话。",
+      "sess.emptyFilter": "当前筛选下没有会话。",
+      "sess.untitled": "未命名会话",
+      "sess.ungrouped": "未分组",
+      "sess.allWorkspaces": "全部工作区",
+      "sess.filterWorkspace": "工作区",
+      "sess.search": "搜索会话标题",
+      "sess.running": "执行任务中",
+      "sess.waitingApproval": "待审批",
+      "sess.planReview": "计划待审",
+      "sess.waitingAnswer": "待回答",
+      "sess.completed": "执行完成",
+      "sess.idle": "没有任务",
+      "sess.pin": "置顶",
+      "sess.unpin": "取消置顶",
+      "sess.pinned": "已置顶",
+      "sess.rename": "重命名",
+      "sess.fork": "分叉会话",
+      "sess.copyId": "复制 Session ID",
+      "sess.openInApp": "在应用打开",
+      "sess.archive": "归档会话",
+      "sess.unarchive": "取消归档",
+      "sess.renameTitle": "重命名会话",
+      "sess.renamePlaceholder": "会话标题",
+      "sess.ok": "确定",
+      "sess.cancel": "取消",
+      "sess.archiveConfirmTitle": "停止并归档此会话？",
+      "sess.archiveConfirmBody": "“{title}” 仍在执行，归档会先停止它的工作。归档后可在侧栏「全部对话」里恢复。",
+      "sess.archiveConfirm": "停止并归档",
+      "sess.copied": "Session ID 已复制",
+      "sess.copyFailed": "复制失败，请重试",
+      "sess.openFailed": "无法打开：{message}",
+      "sess.actionFailed": "操作失败：{message}",
+      "sess.openSession": "打开会话",
+      "sess.actions": "更多操作",
+      "sess.hint": "置顶会话排在最前，其余按最近使用时间排序。",
+      "sess.count": "共 {n} 个会话",
+      "sess.agoNow": "刚刚",
+      "sess.agoMinutes": "{n} 分钟前",
+      "sess.agoHours": "{n} 小时前",
+      "sess.agoDays": "{n} 天前",
+      "sess.agoMonths": "{n} 个月前",
     };
 
     const en = {
-      "entry.label": "My DevOps",
-      "panel.title": "My DevOps",
+      "entry.label": "My Workspace",
+      "panel.title": "My Workspace",
       "panel.back": "Back to chat",
+      "tab.sessions": "Sessions",
+      "tab.devops": "Devops",
       "common.loading": "Loading…",
       "common.refresh": "Refresh",
       "common.search": "Search id or title",
@@ -163,6 +249,7 @@ window.__ModuleLoader__.load({
       "col.type": "Type",
       "col.status": "Status",
       "col.priority": "Priority",
+      "col.points": "Task points",
       "col.end": "Due",
       "col.system": "System",
       "col.reviewKind": "Review kind",
@@ -197,6 +284,48 @@ window.__ModuleLoader__.load({
       "cat.APPROVE_PROCESS": "Approval",
       "cat.SHARED_TEST_CASE": "Shared cases",
       "cat.ALL": "All",
+      "sess.empty": "No sessions on this machine yet.",
+      "sess.emptyFilter": "No session matches the current filter.",
+      "sess.untitled": "Untitled session",
+      "sess.ungrouped": "Ungrouped",
+      "sess.allWorkspaces": "All workspaces",
+      "sess.filterWorkspace": "Workspace",
+      "sess.search": "Search session titles",
+      "sess.running": "Running",
+      "sess.waitingApproval": "Waiting for approval",
+      "sess.planReview": "Plan awaiting review",
+      "sess.waitingAnswer": "Waiting for answer",
+      "sess.completed": "Completed",
+      "sess.idle": "Idle",
+      "sess.pin": "Pin",
+      "sess.unpin": "Unpin",
+      "sess.pinned": "Pinned",
+      "sess.rename": "Rename",
+      "sess.fork": "Fork session",
+      "sess.copyId": "Copy Session ID",
+      "sess.openInApp": "Open in app",
+      "sess.archive": "Archive session",
+      "sess.unarchive": "Unarchive",
+      "sess.renameTitle": "Rename session",
+      "sess.renamePlaceholder": "Session title",
+      "sess.ok": "OK",
+      "sess.cancel": "Cancel",
+      "sess.archiveConfirmTitle": "Stop and archive this session?",
+      "sess.archiveConfirmBody": "“{title}” is still working; archiving stops it first. You can restore it later from All conversations in the sidebar.",
+      "sess.archiveConfirm": "Stop and archive",
+      "sess.copied": "Session ID copied",
+      "sess.copyFailed": "Copy failed. Try again.",
+      "sess.openFailed": "Could not open: {message}",
+      "sess.actionFailed": "Action failed: {message}",
+      "sess.openSession": "Open session",
+      "sess.actions": "More actions",
+      "sess.hint": "Pinned sessions come first; the rest sort by last used.",
+      "sess.count": "{n} sessions",
+      "sess.agoNow": "just now",
+      "sess.agoMinutes": "{n} min ago",
+      "sess.agoHours": "{n} h ago",
+      "sess.agoDays": "{n} d ago",
+      "sess.agoMonths": "{n} mo ago",
     };
     // #endregion
 
@@ -301,6 +430,73 @@ window.__ModuleLoader__.load({
       return day !== "" && day < today();
     }
 
+    /** Last path segment of a workspace folder. */
+    function baseName(path) {
+      if (typeof path !== "string" || path === "") return "";
+      const trimmed = path.replace(/[/\\]+$/, "");
+      const index = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+      return trimmed.slice(index + 1);
+    }
+
+    /** Relative "last used" time, e.g. "3 小时前". */
+    function agoOf(t, stamp) {
+      if (typeof stamp !== "number" || stamp <= 0) return "";
+      const minutes = Math.floor((Date.now() - stamp) / 60000);
+      if (minutes < 1) return t("sess.agoNow");
+      if (minutes < 60) return fill(t("sess.agoMinutes"), { n: minutes });
+      const hours = Math.floor(minutes / 60);
+      if (hours < 24) return fill(t("sess.agoHours"), { n: hours });
+      const days = Math.floor(hours / 24);
+      if (days < 31) return fill(t("sess.agoDays"), { n: days });
+      return fill(t("sess.agoMonths"), { n: Math.floor(days / 30) });
+    }
+
+    /** Unwrap a RemoteResult, throwing the platform message on refusal. */
+    function unwrap(result) {
+      if (result !== null && typeof result === "object" && typeof result.ok === "boolean") {
+        if (result.ok === false) {
+          const message = result.error !== undefined && result.error !== null && typeof result.error.message === "string"
+            ? result.error.message
+            : "request refused";
+          throw new Error(message);
+        }
+        return result.value;
+      }
+      return result;
+    }
+
+    /** The failure message of anything thrown by an action. */
+    function reasonOf(error) {
+      if (error instanceof Error) return error.message;
+      return String(error);
+    }
+
+    /** Subscribe a component to a snapshot source (store or observable). */
+    function useSource(source) {
+      const [value, setValue] = react.useState(() => (
+        source !== null && source !== undefined && typeof source.getSnapshot === "function" ? source.getSnapshot() : undefined
+      ));
+      react.useEffect(() => {
+        if (source === null || source === undefined || typeof source.getSnapshot !== "function") return undefined;
+        let alive = true;
+        const read = () => {
+          if (alive) setValue(source.getSnapshot());
+        };
+        read();
+        if (typeof source.subscribe !== "function") {
+          return () => {
+            alive = false;
+          };
+        }
+        const off = source.subscribe(() => read());
+        return () => {
+          alive = false;
+          if (typeof off === "function") off();
+        };
+      }, [source]);
+      return value;
+    }
+
     /** Tone for a status chip: 进行中-like values get the business accent. */
     function statusTone(row) {
       if (row.stage === "1") return "doing";
@@ -391,10 +587,74 @@ window.__ModuleLoader__.load({
       if (parts.length === 0) return counts.total > 0 ? "" : t("count.empty");
       return parts.join(" · ");
     }
+
+    /**
+     * One session card's status, derived exactly like the DSH sidebar:
+     * a visible pending interaction wins over running, running over the
+     * unread completion marker, and everything else is idle.
+     */
+    function statusOf(t, status) {
+      const kind = status !== null && status !== undefined && status.pendingInteraction !== null && status.pendingInteraction !== undefined
+        ? status.pendingInteraction.kind
+        : undefined;
+      if (kind === "approval") return { state: "warning", label: t("sess.waitingApproval") };
+      if (kind === "plan-review") return { state: "warning", label: t("sess.planReview") };
+      if (kind === "question") return { state: "warning", label: t("sess.waitingAnswer") };
+      if (status !== null && status !== undefined && status.running === true) return { state: "ongoing", label: t("sess.running") };
+      if (status !== null && status !== undefined && status.completionUnread === true) return { state: "done", label: t("sess.completed") };
+      return { state: "idle", label: t("sess.idle") };
+    }
+
+    /** Flatten the session list plus its workspace and status sources into cards. */
+    function sessionRows(t, list, statuses, workspaces) {
+      if (list === null || list === undefined) return [];
+      const workspaceItems = workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.items) ? workspaces.items : [];
+      const pinnedIds = workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.pinnedSessionIds) ? workspaces.pinnedSessionIds : [];
+      const archivedIds = workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.archivedSessionIds) ? workspaces.archivedSessionIds : [];
+      const pinned = new Map(pinnedIds.map((id, index) => [id, index]));
+      const archived = new Set(archivedIds);
+      const workspaceOf = new Map();
+      for (const workspace of workspaceItems) {
+        for (const id of Array.isArray(workspace.sessionIds) ? workspace.sessionIds : []) workspaceOf.set(id, workspace);
+      }
+      const ids = Array.isArray(list.ids) ? list.ids : [];
+      const byId = list.byId !== null && list.byId !== undefined ? list.byId : {};
+      const rows = [];
+      for (const id of ids) {
+        const summary = byId[id];
+        if (summary === null || summary === undefined) continue;
+        // Archived sessions live behind the sidebar's own filter, and subagent
+        // children are not sessions the user opens from here.
+        if (archived.has(id)) continue;
+        if (summary.origin === "subagent") continue;
+        const workspace = workspaceOf.get(id);
+        const cwd = typeof summary.cwd === "string" && summary.cwd !== "" ? summary.cwd : (workspace !== undefined ? workspace.path : "");
+        const status = statuses !== null && statuses !== undefined && typeof statuses.get === "function" ? statuses.get(id) : undefined;
+        const rawTitle = summary.blank === true ? "" : String(summary.title === undefined || summary.title === null ? "" : summary.title).trim();
+        const pinnedIndex = pinned.has(id) ? pinned.get(id) : Number.MAX_SAFE_INTEGER;
+        rows.push({
+          id,
+          title: rawTitle,
+          cwd,
+          workspace: workspace !== undefined && typeof workspace.title === "string" && workspace.title !== "" ? workspace.title : baseName(cwd),
+          workspaceId: workspace !== undefined ? workspace.workspaceId : "",
+          status: statusOf(t, status),
+          pinned: pinned.has(id),
+          rank: pinnedIndex,
+          updatedAt: typeof summary.updatedAt === "number" ? summary.updatedAt : 0,
+          current: summary.retainedBy !== undefined && summary.retainedBy !== null && (summary.retainedBy.mainView ?? 0) > 0,
+          running: (status !== undefined && status.running === true) || summary.running === true,
+        });
+      }
+      // Pinned cards keep the platform's own order (most recent pin first);
+      // everything else follows the last-used time, across workspaces.
+      rows.sort((left, right) => (left.rank - right.rank) || (right.updatedAt - left.updatedAt));
+      return rows;
+    }
     // #endregion
 
-    // #region panel
-    /** Sidebar glyph for the DevOps panel entry: a small checklist. */
+    // #region glyphs
+    /** Sidebar glyph for the workbench entry: a small checklist. */
     function SidebarGlyph(props) {
       const size = props.size || 16;
       return h("svg", {
@@ -414,6 +674,89 @@ window.__ModuleLoader__.load({
         h("path", { d: "M9.9 6.1h1.6M9.9 11.3h1.6" }));
     }
 
+    /** Small per-state glyph used on session cards. */
+    function StatusIcon(props) {
+      const common = {
+        viewBox: "0 0 12 12",
+        width: 12,
+        height: 12,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.3,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+      };
+      if (props.state === "ongoing") {
+        return h("svg", common,
+          h("circle", { cx: "6", cy: "6", r: "4.6", opacity: "0.35" }),
+          h("path", { d: "M6 2.6a3.4 3.4 0 0 1 3.4 3.4", strokeWidth: "1.6" }));
+      }
+      if (props.state === "warning") {
+        return h("svg", common,
+          h("circle", { cx: "6", cy: "6", r: "4.6" }),
+          h("path", { d: "M6 3.6v3.1" }),
+          h("circle", { cx: "6", cy: "8.5", r: "0.45", fill: "currentColor", stroke: "none" }));
+      }
+      if (props.state === "done") {
+        return h("svg", common,
+          h("circle", { cx: "6", cy: "6", r: "4.6" }),
+          h("path", { d: "M3.9 6.1 5.3 7.5 8.2 4.6" }));
+      }
+      return h("svg", common,
+        h("circle", { cx: "6", cy: "6", r: "4.6" }),
+        h("path", { d: "M3.9 6h4.2" }));
+    }
+
+    /** Pin glyph: filled when pinned, outline while it is only a hover action. */
+    function PinIcon(props) {
+      return h("svg", {
+        viewBox: "0 0 16 16",
+        width: 14,
+        height: 14,
+        fill: props.filled ? "currentColor" : "none",
+        stroke: "currentColor",
+        strokeWidth: 1.2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+      },
+        h("path", { d: "M8 1.9c1.9 0 3.3 1.5 3.3 3.3 0 2.4-3.3 5.4-3.3 5.4S4.7 7.6 4.7 5.2c0-1.8 1.4-3.3 3.3-3.3z" }),
+        h("path", { d: "M8 11.4v2.7" }));
+    }
+
+    /** Kebab glyph for the card menu. */
+    function KebabIcon() {
+      return h("svg", {
+        viewBox: "0 0 16 16",
+        width: 14,
+        height: 14,
+        fill: "currentColor",
+        "aria-hidden": "true",
+      },
+        h("circle", { cx: "8", cy: "3.4", r: "1.15" }),
+        h("circle", { cx: "8", cy: "8", r: "1.15" }),
+        h("circle", { cx: "8", cy: "12.6", r: "1.15" }));
+    }
+
+    /** A calendar-ish glyph for a workspace name. */
+    function FolderIcon() {
+      return h("svg", {
+        viewBox: "0 0 16 16",
+        width: 12,
+        height: 12,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+      },
+        h("path", { d: "M1.9 4.4h4l1.3 1.5h6.9v6.2a1 1 0 0 1-1 1H2.9a1 1 0 0 1-1-1z" }));
+    }
+    // #endregion
+
+    // #region devops tab
     /** One bucket tile: label, count, category breakdown. */
     function CountTile(props) {
       const t = props.t;
@@ -429,8 +772,8 @@ window.__ModuleLoader__.load({
         h("span", { className: "dt-tileHint" }, props.hint === "" ? t("count.empty") : props.hint));
     }
 
-    /** The panel: counts, three buckets, search. */
-    function Panel(props) {
+    /** The DevOps tab: counts, three buckets, search, table. */
+    function DevopsView(props) {
       const t = props.t;
       const api = props.api;
       const [tab, setTab] = react.useState("todo");
@@ -469,6 +812,7 @@ window.__ModuleLoader__.load({
           { key: "title", label: t("col.title"), render: (row) => row.title },
           { key: "sceneLabel", label: t("col.reviewKind"), render: (row) => chip(row.sceneLabel) },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
+          { key: "points", label: t("col.points"), render: (row) => pointsCell(row) },
           { key: "end", label: t("col.end"), render: (row) => endCell(row) },
           { key: "system", label: t("col.system"), render: (row) => systemCell(row) },
         ]
@@ -478,6 +822,7 @@ window.__ModuleLoader__.load({
           { key: "type", label: t("col.type"), render: (row) => row.type === "" ? h("span", { className: "dt-muted" }, "-") : row.type },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
           { key: "priority", label: t("col.priority"), render: (row) => chip(row.priority, priorityTone(row.priority)) },
+          { key: "points", label: t("col.points"), render: (row) => pointsCell(row) },
           { key: "end", label: t("col.end"), render: (row) => endCell(row) },
           { key: "system", label: t("col.system"), render: (row) => systemCell(row) },
         ];
@@ -493,14 +838,7 @@ window.__ModuleLoader__.load({
             ? h("span", { className: "dt-badge", "data-state": "ok", title: fill(t("state.fetched"), { time: fetchedAt }) }, t("state.stale"))
             : h("span", { className: "dt-badge", "data-state": "ok" }, fill(t("state.fetched"), { time: fetchedAt }));
 
-      return h("div", { className: "dt-panel" },
-        h("div", { className: "dt-header" },
-          h("button", { type: "button", className: "dt-btn", onClick: props.onBack, title: t("panel.back") }, "‹"),
-          h("h2", { className: "dt-title" }, t("panel.title")),
-          stateChip,
-          snap.loading ? h("span", { className: "dt-spinner", role: "status", "aria-label": t("common.loading") }) : null,
-          h("button", { type: "button", className: "dt-btn", disabled: snap.loading, onClick: () => snap.refresh(true) }, t("common.refresh"))),
-
+      return h(react.Fragment, null,
         h("div", { className: "dt-tiles" },
           tabs.map((entry) => {
             const countsFor = counts[entry.id] !== undefined && counts[entry.id] !== null ? counts[entry.id] : null;
@@ -543,7 +881,10 @@ window.__ModuleLoader__.load({
             onChange: (event) => setQuery(event.target.value),
           }),
           h("span", { className: "dt-spacer" }),
-          h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, t("hint." + tab))),
+          h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, t("hint." + tab)),
+          stateChip,
+          snap.loading ? h("span", { className: "dt-spinner", role: "status", "aria-label": t("common.loading") }) : null,
+          h("button", { type: "button", className: "dt-btn", disabled: snap.loading, onClick: () => snap.refresh(true) }, t("common.refresh"))),
 
         h("div", { className: "dt-body" },
           snap.loading && data === null ? null : h(react.Fragment, null,
@@ -571,6 +912,13 @@ window.__ModuleLoader__.load({
       }, copied === row.id ? t("common.copied") : row.id);
     }
 
+    /** The task-point cell: the tenant's optional float column. */
+    function pointsCell(row) {
+      const value = row.points;
+      if (typeof value !== "number" || !Number.isFinite(value)) return h("span", { className: "dt-muted" }, "-");
+      return h("span", { className: "dt-num" }, String(value));
+    }
+
     /** The due cell: date plus an overdue accent. */
     function endCell(row) {
       const day = dayOf(row.end);
@@ -590,12 +938,388 @@ window.__ModuleLoader__.load({
     }
     // #endregion
 
+    // #region sessions tab
+    /** Dialog listing the six card actions. */
+    function SessionMenu(props) {
+      const t = props.t;
+      const item = (label, onClick, options) => h("button", {
+        type: "button",
+        className: "dt-menuItem",
+        "data-danger": options !== undefined && options.danger === true ? "" : undefined,
+        onClick: (event) => {
+          event.stopPropagation();
+          props.onClose();
+          onClick();
+        },
+      }, label);
+      return h("div", {
+        className: "dt-menu",
+        role: "menu",
+        onClick: (event) => event.stopPropagation(),
+        onKeyDown: (event) => {
+          if (event.key === "Escape") props.onClose();
+        },
+      },
+        item(props.row.pinned ? t("sess.unpin") : t("sess.pin"), () => props.onTogglePin(props.row)),
+        item(t("sess.rename"), () => props.onRename(props.row)),
+        item(t("sess.fork"), () => props.onFork(props.row)),
+        item(t("sess.copyId"), () => props.onCopyId(props.row)),
+        item(t("sess.openInApp"), () => props.onOpenInApp(props.row)),
+        h("div", { className: "dt-menuSep" }),
+        item(t("sess.archive"), () => props.onArchive(props.row), { danger: true }));
+    }
+
+    /** One session card. */
+    function SessionCard(props) {
+      const t = props.t;
+      const row = props.row;
+      const title = row.title === "" ? t("sess.untitled") : row.title;
+      const used = agoOf(t, row.updatedAt);
+      return h("article", {
+        className: "dt-card",
+        tabIndex: 0,
+        role: "button",
+        "data-current": row.current ? "" : undefined,
+        "data-pinned": row.pinned ? "" : undefined,
+        "aria-label": title + " · " + row.status.label + (row.workspace === "" ? "" : " · " + row.workspace),
+        title: t("sess.openSession"),
+        onClick: () => props.onOpen(row),
+        onKeyDown: (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            props.onOpen(row);
+          }
+        },
+      },
+        h("div", { className: "dt-cardTop" },
+          h("span", { className: "dt-status", "data-state": row.status.state },
+            h(StatusIcon, { state: row.status.state }),
+            h("span", null, row.status.label)),
+          h("span", { className: "dt-cardBtns" },
+            h("button", {
+              type: "button",
+              className: "dt-iconBtn dt-pin",
+              "data-on": row.pinned ? "" : undefined,
+              "aria-label": row.pinned ? t("sess.unpin") : t("sess.pin"),
+              title: row.pinned ? t("sess.unpin") : t("sess.pin"),
+              onClick: (event) => {
+                event.stopPropagation();
+                props.onTogglePin(row);
+              },
+            }, h(PinIcon, { filled: row.pinned })),
+            h("button", {
+              type: "button",
+              className: "dt-iconBtn dt-more",
+              "aria-label": t("sess.actions"),
+              "aria-haspopup": "menu",
+              "aria-expanded": props.menuOpen ? "true" : "false",
+              title: "⋯",
+              onClick: (event) => {
+                event.stopPropagation();
+                props.onToggleMenu(row);
+              },
+            }, h(KebabIcon)))),
+        h("h3", { className: "dt-cardTitle", title }, title),
+        h("div", { className: "dt-cardFoot" },
+          h(FolderIcon),
+          h("span", { className: "dt-ws", title: row.cwd === "" ? row.workspace : row.cwd }, row.workspace === "" ? t("sess.ungrouped") : row.workspace),
+          used === "" ? null : h("span", null, used)),
+        props.menuOpen ? h(SessionMenu, props.menu) : null);
+    }
+
+    /** Modal asking for a new session title. */
+    function RenameDialog(props) {
+      const t = props.t;
+      const [value, setValue] = react.useState(props.initial);
+      const input = react.useRef(null);
+      react.useEffect(() => {
+        if (input.current !== null) {
+          input.current.focus();
+          input.current.select();
+        }
+      }, []);
+      const commit = () => {
+        const next = value.trim();
+        if (next === "") return;
+        props.onConfirm(next);
+      };
+      return h("div", { className: "dt-overlay", role: "dialog", "aria-modal": "true", onClick: props.onCancel },
+        h("div", { className: "dt-dialog", onClick: (event) => event.stopPropagation() },
+          h("h3", { className: "dt-dialogTitle" }, t("sess.renameTitle")),
+          h("input", {
+            ref: input,
+            className: "dt-input",
+            value,
+            placeholder: t("sess.renamePlaceholder"),
+            "aria-label": t("sess.renamePlaceholder"),
+            onChange: (event) => setValue(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commit();
+              }
+              if (event.key === "Escape") props.onCancel();
+            },
+          }),
+          h("div", { className: "dt-dialogRow" },
+            h("button", { type: "button", className: "dt-btn", onClick: props.onCancel }, t("sess.cancel")),
+            h("button", { type: "button", className: "dt-btn", disabled: value.trim() === "", onClick: commit }, t("sess.ok")))));
+    }
+
+    /** Modal confirming a stop-and-archive of a running session. */
+    function ArchiveDialog(props) {
+      const t = props.t;
+      return h("div", { className: "dt-overlay", role: "dialog", "aria-modal": "true", onClick: props.onCancel },
+        h("div", { className: "dt-dialog", onClick: (event) => event.stopPropagation() },
+          h("h3", { className: "dt-dialogTitle" }, t("sess.archiveConfirmTitle")),
+          h("div", { className: "dt-dialogBody" }, fill(t("sess.archiveConfirmBody"), { title: props.title === "" ? t("sess.untitled") : props.title })),
+          h("div", { className: "dt-dialogRow" },
+            h("button", { type: "button", className: "dt-btn", onClick: props.onCancel }, t("sess.cancel")),
+            h("button", { type: "button", className: "dt-btn", onClick: props.onConfirm }, t("sess.archiveConfirm")))));
+    }
+
+    /** The sessions tab: workspace filter, search, and the card grid. */
+    function SessionsView(props) {
+      const t = props.t;
+      const ops = props.ops;
+      const list = useSource(props.sessions !== undefined && props.sessions !== null ? props.sessions.list : null);
+      const statuses = useSource(props.uiSession !== undefined && props.uiSession !== null ? props.uiSession.sessionStatus : null);
+      const workspaces = useSource(props.workspaces !== undefined && props.workspaces !== null ? props.workspaces.list : null);
+      const [filter, setFilter] = react.useState("all");
+      const [query, setQuery] = react.useState("");
+      const [menuFor, setMenuFor] = react.useState(null);
+      const [renaming, setRenaming] = react.useState(null);
+      const [archiving, setArchiving] = react.useState(null);
+      const [toast, setToast] = react.useState(null);
+
+      const notify = react.useCallback((text, kind) => {
+        setToast({ text, kind: kind === undefined ? "error" : kind });
+        setTimeout(() => setToast((prev) => (prev !== null && prev.text === text ? null : prev)), 2600);
+      }, []);
+
+      const rows = sessionRows(t, list, statuses, workspaces);
+      const workspaceItems = workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.items) ? workspaces.items : [];
+
+      // Close the card menu on any outside click or Escape.
+      react.useEffect(() => {
+        if (menuFor === null) return undefined;
+        const onDown = () => setMenuFor(null);
+        const onKey = (event) => {
+          if (event.key === "Escape") setMenuFor(null);
+        };
+        document.addEventListener("mousedown", onDown);
+        document.addEventListener("keydown", onKey);
+        return () => {
+          document.removeEventListener("mousedown", onDown);
+          document.removeEventListener("keydown", onKey);
+        };
+      }, [menuFor]);
+
+      const fail = (prefix) => (error) => notify(fill(prefix, { message: reasonOf(error) }));
+      const successfully = (action, message) => {
+        Promise.resolve(action).then(() => {
+          if (message !== undefined) notify(message, "ok");
+        }).catch(fail(prefixOf("sess.actionFailed", t)));
+      };
+
+      const open = (row) => ops.open(row.id);
+      const togglePin = (row) => {
+        successfully(row.pinned ? ops.unpin(row.id) : ops.pin(row.id));
+      };
+      const copyId = (row) => {
+        copyText(row.id).then((ok) => notify(ok ? t("sess.copied") : t("sess.copyFailed"), ok ? "ok" : "error"));
+      };
+      const openInApp = (row) => {
+        const path = row.cwd;
+        if (path === "") {
+          notify(fill(t("sess.openFailed"), { message: t("sess.ungrouped") }));
+          return;
+        }
+        Promise.resolve(ops.openInApp(path)).catch(fail(t("sess.openFailed")));
+      };
+      const fork = (row) => {
+        successfully(ops.fork(row.id));
+      };
+      const archive = (row) => {
+        if (row.running) {
+          setArchiving(row);
+          return;
+        }
+        successfully(ops.archive(row.id, false));
+      };
+
+      const needle = query.trim().toLowerCase();
+      const visible = rows.filter((row) => {
+        if (filter === "ungrouped" && row.workspaceId !== "") return false;
+        if (filter !== "all" && filter !== "ungrouped" && row.workspaceId !== filter) return false;
+        if (needle === "") return true;
+        return row.title.toLowerCase().includes(needle) || (row.workspace !== "" && row.workspace.toLowerCase().includes(needle));
+      });
+
+      const menuProps = (row) => ({
+        t,
+        row,
+        onClose: () => setMenuFor(null),
+        onTogglePin: togglePin,
+        onRename: (target) => {
+          setRenaming(target);
+        },
+        onFork: fork,
+        onCopyId: copyId,
+        onOpenInApp: openInApp,
+        onArchive: archive,
+      });
+
+      return h(react.Fragment, null,
+        h("div", { className: "dt-toolbar" },
+          h("label", { className: "dt-muted", style: { fontSize: "12px" }, htmlFor: "dt-ws-filter" }, t("sess.filterWorkspace")),
+          h("select", {
+            id: "dt-ws-filter",
+            className: "dt-select",
+            value: filter,
+            "aria-label": t("sess.filterWorkspace"),
+            onChange: (event) => setFilter(event.target.value),
+          },
+            h("option", { value: "all" }, t("sess.allWorkspaces")),
+            workspaceItems.map((workspace) => h("option", { key: workspace.workspaceId, value: workspace.workspaceId },
+              workspace.title === "" ? workspace.path : workspace.title)),
+            h("option", { value: "ungrouped" }, t("sess.ungrouped"))),
+          h("input", {
+            className: "dt-input",
+            type: "search",
+            value: query,
+            placeholder: t("sess.search"),
+            "aria-label": t("sess.search"),
+            onChange: (event) => setQuery(event.target.value),
+          }),
+          h("span", { className: "dt-spacer" }),
+          h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, t("sess.hint"))),
+
+        h("div", { className: "dt-body" },
+          visible.length === 0
+            ? h("div", { className: "dt-empty" }, rows.length === 0 ? t("sess.empty") : t("sess.emptyFilter"))
+            : h("div", { className: "dt-cards" },
+              visible.map((row) => h(SessionCard, {
+                key: row.id,
+                t,
+                row,
+                menuOpen: menuFor === row.id,
+                onOpen: open,
+                onTogglePin: togglePin,
+                onToggleMenu: (target) => setMenuFor((prev) => (prev === target.id ? null : target.id)),
+                menu: menuProps(row),
+              }))),
+          h("div", { className: "dt-footer" }, fill(t("sess.count"), { n: visible.length }))),
+
+        renaming === null ? null : h(RenameDialog, {
+          t,
+          initial: renaming.title,
+          onCancel: () => setRenaming(null),
+          onConfirm: (title) => {
+            const target = renaming;
+            setRenaming(null);
+            successfully(ops.rename(target.id, title));
+          },
+        }),
+
+        archiving === null ? null : h(ArchiveDialog, {
+          t,
+          title: archiving.title,
+          onCancel: () => setArchiving(null),
+          onConfirm: () => {
+            const target = archiving;
+            setArchiving(null);
+            successfully(ops.archive(target.id, true));
+          },
+        }),
+
+        toast === null ? null : h("div", { className: "dt-toast", "data-kind": toast.kind, role: "status" }, toast.text));
+    }
+
+    /** Localised prefix lookup for action failures. */
+    function prefixOf(key, t) {
+      return t(key);
+    }
+    // #endregion
+
+    /** The panel root: header plus the two tabs. */
+    function Panel(props) {
+      const t = props.t;
+      const [tab, setTab] = react.useState("sessions");
+      const tabs = [
+        { id: "sessions", label: t("tab.sessions") },
+        { id: "devops", label: t("tab.devops") },
+      ];
+      return h("div", { className: "dt-panel" },
+        h("div", { className: "dt-header" },
+          h("button", { type: "button", className: "dt-btn", onClick: props.onBack, title: t("panel.back") }, "‹"),
+          h("h2", { className: "dt-title" }, t("panel.title")),
+          h("div", { className: "dt-seg", role: "tablist" },
+            tabs.map((entry) => h("button", {
+              key: entry.id,
+              type: "button",
+              className: "dt-segBtn",
+              role: "tab",
+              "data-active": tab === entry.id ? "" : undefined,
+              "aria-selected": tab === entry.id ? "true" : "false",
+              onClick: () => setTab(entry.id),
+            }, entry.label)))),
+        tab === "sessions"
+          ? h(SessionsView, {
+            t,
+            sessions: props.sessions,
+            uiSession: props.uiSession,
+            workspaces: props.workspaces,
+            ops: props.ops,
+          })
+          : h(DevopsView, { t, api: props.api }));
+    }
+
     /** Register the sidebar entry and the panel it opens. */
     function apply(ctx) {
       ctx.effect(() => ctx.locale.register(NS, { zh, en }), "dsh-devops-tasks: dictionaries");
       ctx.effect(() => installStyles(), "dsh-devops-tasks: styles");
       const t = ctx.locale.bind(NS);
       const api = new DevopsApi();
+      // Services are resolved through the injected names; `ctx.get` keeps the
+      // module loadable when a context exposes them as plain properties.
+      const service = (name) => {
+        try {
+          const found = typeof ctx.get === "function" ? ctx.get(name) : undefined;
+          if (found !== undefined && found !== null) return found;
+        } catch {
+          /* fall through to the property */
+        }
+        return ctx[name];
+      };
+      const uiWorkspace = service("uiWorkspace");
+      const remote = ctx.remote;
+      const ops = {
+        open(sessionId) {
+          uiWorkspace.openSession(sessionId);
+        },
+        pin(sessionId) {
+          return uiWorkspace.pinSession(sessionId);
+        },
+        unpin(sessionId) {
+          return uiWorkspace.unpinSession(sessionId);
+        },
+        fork(sessionId) {
+          return uiWorkspace.forkSession(sessionId).then((childId) => {
+            uiWorkspace.openSession(childId);
+            return childId;
+          });
+        },
+        rename(sessionId, title) {
+          return remote.session.rename({ sessionId, title }).then(unwrap);
+        },
+        openInApp(path) {
+          return remote.session.openWorkspacePath({ path }).then(unwrap);
+        },
+        archive(sessionId, stopActivity) {
+          return uiWorkspace.archiveSession(sessionId, { stopActivity: stopActivity === true });
+        },
+      };
 
       ctx.slots.inject("main", () => ctx.slots.register({
         name: "main",
@@ -604,6 +1328,10 @@ window.__ModuleLoader__.load({
         inject: () => ({
           api,
           t,
+          ops,
+          sessions: service("sessions"),
+          uiSession: service("uiSession"),
+          workspaces: service("workspaces"),
           onBack: () => ctx.layout.selectPanel(null),
         }),
       }, Panel));
@@ -618,7 +1346,7 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply;
-    exports.inject = ["slots", "locale", "layout"];
+    exports.inject = ["slots", "locale", "layout", "remote", "sessions", "uiSession", "uiWorkspace", "workspaces"];
     return module.exports;
   },
 });

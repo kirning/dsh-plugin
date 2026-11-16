@@ -1,9 +1,20 @@
-# dsh-devops-tasks — DSH Web 插件：把我的 DevOps 工作项加载到侧边栏
+# dsh-devops-tasks — DSH Web 插件：我的工作台（会话管理 + DevOps 待办）
 
-在 DeepSeek Harness Web GUI 的侧边栏加一个「我的 DevOps」入口，点开后是一个面板：
+在 DeepSeek Harness Web GUI 的侧边栏加一个「我的工作台」入口，面板分两个页签：
+
+**会话管理**（默认，纯客户端、零请求）
+
+- 本机会话按卡片列出：标题（两行省略）、状态（执行任务中 / 待审批 / 计划待审 / 待回答 / 执行完成 / 没有任务，
+  图标与判定口径和 DSH 侧边栏一致）、工作区名、最近使用时间
+- 卡片右上角：置顶图标（未置顶时 hover 才出现，置顶后常显）+ 三点菜单
+- 三点菜单：置顶 / 取消置顶、重命名、分叉会话、复制 Session ID、在应用打开、归档会话（运行中的会先停下来再归档）
+- 工具栏：工作区筛选（全部 / 各工作区 / 未分组）+ 标题搜索
+- 排序：置顶的按置顶时间排在最前，其余按最近使用时间倒序（不分工作区）；已归档与子代理会话不展示
+
+**Devops 管理**
 
 - **三张计数卡片**：待办（待处理）/ 待审（待我评审）/ 我创建的，各自带分类明细（故事、任务、提醒、缺陷…）
-- **三个页签的列表**：编号（点一下复制）、标题、类型、状态、优先级、截止日期（过期标红）、所属系统
+- **三个页签的列表**：编号（点一下复制）、标题、类型、状态、优先级、任务点数、截止日期（过期标红）、所属系统
 - **搜索框**：在前端按编号/标题/系统过滤，不发新请求
 - **刷新**：手动强制刷新，并显示数据来自缓存还是刚取回
 
@@ -65,9 +76,28 @@ DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/lis
 - 待办 = `toDoStatus: NOT_STARTED`，scene `to_do_item_all`
 - 待审 = `toDoStatus: NOT_REVIEW`，6 个评审 scene（测试计划/测试报告/里程碑/通用流程/审批流/共享用例）
 - 我创建的 = `toDoStatus: CREATED`，4 个 scene（需求/缺陷/审批流程/通用评审流程）
+- 任务点数 = 模板字段 `456e2950-4644-4d9c-b99f-ae2ef52311aa`（float，非必填；故事/任务模板共用这个 fieldCode），
+  空值显示 `-`
 - 计数走 `getCountAutoZone?zone=yellow`（组织不支持红黄区时 `isShowZoneSwitch` 为 false）
 - 「提醒」行是 @我 的评论：没有工作项编号，`toDoCategory.value = "6"`，标题是富文本 HTML，
-  面板里已剥成纯文本，并按「标题 + 系统」去重（不能按 id 去重，否则 16 条提醒会塌成 1 条）
+  面板里已剥成纯文本，并且只对带编号的行按 id 去重、无编号的提醒行一律保留（否则同标题提醒会塌成一条）
+
+## 会话管理的数据来源（DSH 客户端服务）
+
+全部是已安装 DSH 的公开客户端面，没有自造状态，也没有额外 HTTP：
+
+| 用途 | 服务 / 方法 |
+|---|---|
+| 会话清单 | `ctx.sessions.list`（`{ids, byId, phase}` 快照存储，订阅式） |
+| 会话状态 | `ctx.uiSession.sessionStatus`（`Map<sessionId, {running, pendingInteraction, completionUnread}>`） |
+| 工作区、归档、置顶 | `ctx.workspaces.list`（`{items, archivedSessionIds, pinnedSessionIds}`）+ `pinSession/unpinSession/archiveSession` |
+| 打开 / 分叉 / 归档 | `ctx.uiWorkspace.openSession/forkSession/archiveSession` |
+| 重命名 | `ctx.remote.session.rename({ sessionId, title })` → `RemoteResult` |
+| 在应用打开 | `ctx.remote.session.openWorkspacePath({ path })` → `RemoteResult` |
+
+状态映射与 DSH 侧边栏一致：`pendingInteraction.kind` 为 `approval`/`plan-review`/`question` 时算「待回答」类，
+否则 `running` 算「执行任务中」，`completionUnread` 算「执行完成」，其余「没有任务」。
+子代理会话（`origin === "subagent"`）与已归档会话不在卡片里出现。
 
 ## 安装 / 卸载
 
@@ -85,3 +115,5 @@ dsh plugin --profile web install
 - 工作项深链没有稳定规则（平台 `process_link` 对 story/detail 链接返回未命中），所以编号只做「复制」，不做跳转。
 - 「我创建的」只覆盖上述 4 个 scene，不包含我创建但已归档/删除的工作项。
 - 依赖 `devops-mcp-agile` MCP 服务的 PAT（`mcpu_…`），PAT 轮换后插件会在 60s 内自动用新端点。
+- 会话管理没有「取消归档」入口（归档动作直接调 `archiveSession`，恢复走 DSH 侧栏自己的「全部对话」）。
+- 宿主半的字段改动（如新增「任务点数」）需要重启 `dsh web` 才生效；浏览器半刷新页面即可。

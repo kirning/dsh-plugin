@@ -62,6 +62,12 @@ const TEMPLATE_TYPES = {
   '55f7f6f9-8b2e-42bb-bbe9-41b08c5b8fde': '任务',
 }
 
+/**
+ * The tenant's custom "任务点数" field: a float on the story and task
+ * templates, addressed by field code rather than by name.
+ */
+const TASK_POINT_CODE = '456e2950-4644-4d9c-b99f-ae2ef52311aa'
+
 /** Field codes requested from the platform for every bucket. */
 const FIELD_CODES = [
   'id',
@@ -74,6 +80,7 @@ const FIELD_CODES = [
   'fc_expect_finish_time',
   'fc_responsible_person',
   'systemTeamName',
+  TASK_POINT_CODE,
 ]
 
 /** Per-scene page size; the platform caps a page at {@link PLATFORM_PAGE_CAP}. */
@@ -459,6 +466,8 @@ export function normalizeRow(item, scene) {
     status: value('fc_status') ?? '',
     stage: stage === undefined || stage === null ? null : String(stage),
     priority: value('fc_priority') ?? '',
+    // "任务点数" is optional and only the story/task templates carry it.
+    points: pointsOf(fields[TASK_POINT_CODE]),
     owner: value('fc_responsible_person') ?? '',
     start,
     end,
@@ -492,6 +501,21 @@ export function plainText(html) {
     .replace(/\s+/g, ' ')
     .replace(/\s*\[TRUNCATED\]\s*$/i, '…')
     .trim()
+}
+
+/**
+ * "任务点数" as a number, or null when the template has no value for it. The
+ * platform sends floats as display strings ("3" and "0.5" both occur).
+ */
+function pointsOf(entry) {
+  if (entry === null || entry === undefined) return null
+  const candidates = [entry.displayValue, entry.value]
+  for (const candidate of candidates) {
+    if (candidate === null || candidate === undefined || candidate === '') continue
+    const parsed = Number(candidate)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return null
 }
 
 /** The handful of HTML entities the platform's rich text actually uses. */
