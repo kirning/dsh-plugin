@@ -1,11 +1,13 @@
 /**
  * 「公司额度」插件宿主半。
  *
- * 把两处事实合成一个 overview 文档，供浏览器半的设置分区渲染：
- *  - 逐日消费：额度接口自己的余额做差（见 ./balance.ts）—— 某天花了多少 =
+ * 把三处事实合成一个 overview 文档，供浏览器半的设置分区渲染：
+ *  - 逐日消费（金额）：额度接口自己的余额做差（见 ./balance.ts）—— 某天花了多少 =
  *    上一次余额 − 当天余额，不看 token、不查价目表、不扫会话日志；
  *    **余额快照开始之前的历史**沿用旧的用量台账折算（见 ./legacy.ts，只读不改），
  *    于是切换口径不会把过去的日子抹掉；
+ *  - 逐日 token：扫 DSH 自己的会话日志（见 ./tokens.ts），只统计 provider 属于
+ *    公司网关的调用，按天合计输入 + 缓存命中 + 输出 —— 金额算不出来时 token 照样有数；
  *  - 当月额度：公司 token-kanban 的 member-quota 接口，Bearer = 公司路由的
  *    apiKeyEnv 凭据，经宿主 credentials 服务解析 —— API key 永不进入浏览器。
  *
@@ -35,6 +37,7 @@ import {
 } from './shared.ts'
 import { dailySpend, firstSnapshotDate, recordBalance } from './balance.ts'
 import { legacyDaily } from './legacy.ts'
+import { collectTokens, warmTokens } from './tokens.ts'
 
 export const name = 'company-quota'
 export const inject = ['webServer']
@@ -371,9 +374,19 @@ async function overview(ctx: Context, force: boolean): Promise<OverviewDocument>
   const byDate = new Map<string, DailyRow>()
   for (const row of legacyRows) byDate.set(row.date, row)
   for (const row of balanceRows) byDate.set(row.date, row)
+
+  // 逐日 token：来自 DSH 会话日志，只算公司网关的调用（与金额互不依赖：
+  // 金额走余额差，token 走日志，金额算不出来（价目表外/当天还没差额）时 token 照样有数）。
+  const tokenDays = await collectTokens(ctx, companyRouteIds(routes))
+  for (const [date, tokens] of tokenDays) {
+    const row = byDate.get(date)
+    if (row === undefined) byDate.set(date, { date, cost: 0, tokens: tokens.totalTokens })
+    else row.tokens = tokens.totalTokens
+  }
+
   const daily = [...byDate.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   const todayKey = localDateKey(now)
-  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 }
+  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0, tokens: 0 }
 
   const forecast = quota === undefined ? undefined : forecastFrom(quota, now)
   return {
@@ -464,8 +477,17 @@ export function apply(ctx: Context): void {
   // 启动后尽快采一笔：否则「今天」的第一笔快照要等到界面被打开。
   const kickoff = setTimeout(sampleOnce, 5_000)
   kickoff.unref?.()
+  // 预热 token 扫描：首次要解压上百个会话日志（异步线程池，不堵事件循环，
+  // 但本机实测几十秒），放在启动几秒后跑，界面打开时缓存已经热了。
+  const warm = setTimeout(() => {
+    void warmTokens(companyRouteIds(resolveCompanyRoutes(ctx))).catch(() => {
+      // 预热失败不影响任何展示：真正的请求会再试一次。
+    })
+  }, 8_000)
+  warm.unref?.()
   ctx.effect(() => () => {
     clearInterval(timer)
     clearTimeout(kickoff)
+    clearTimeout(warm)
   }, 'dsh-plugin-company-quota: sampling')
 }

@@ -141,7 +141,7 @@ export async function legacyDaily(routeIds: ReadonlySet<string>, beforeDate: str
   const rows: DailyRow[] = []
   for (const [date, cost] of days) {
     if (date >= beforeDate) continue
-    rows.push({ date, cost })
+    rows.push({ date, cost, tokens: 0 })
   }
   rows.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
   return rows

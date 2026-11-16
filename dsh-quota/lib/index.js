@@ -79,7 +79,7 @@ async function dailySpend(nowMs) {
     const [date, current] = entries[index];
     const previous = entries[index - 1][1];
     const spent = previous.remaining - current.remaining;
-    rows.push({ date, cost: spent > 0 ? Math.round(spent * 1e6) / 1e6 : 0 });
+    rows.push({ date, cost: spent > 0 ? Math.round(spent * 1e6) / 1e6 : 0, tokens: 0 });
   }
   return rows;
 }
@@ -174,10 +174,325 @@ async function legacyDaily(routeIds, beforeDate) {
   const rows = [];
   for (const [date, cost] of days) {
     if (date >= beforeDate) continue;
-    rows.push({ date, cost });
+    rows.push({ date, cost, tokens: 0 });
   }
   rows.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   return rows;
+}
+
+// src/tokens.ts
+import { mkdir as mkdir2, readdir, readFile as readFile3, rename as rename2, stat as stat2, writeFile as writeFile2 } from "node:fs/promises";
+import { homedir as homedir3 } from "node:os";
+import { dirname as dirname2, join as join3 } from "node:path";
+import { zstdDecompress } from "node:zlib";
+var CACHE_VERSION = 1;
+var DEFAULT_WINDOW_DAYS = 120;
+var RESCAN_MS = 3e4;
+var FILES_IN_FLIGHT = 3;
+var ZSTD_MAGIC = Buffer.from([40, 181, 47, 253]);
+var LOG_FILE_PATTERN = /^session\.v\d+\.jsonl\.zstd$/;
+var memory;
+var loading2;
+var refreshing;
+function dshHome() {
+  return process.env.DSH_HOME ?? join3(homedir3(), ".dsh");
+}
+function cachePath() {
+  return join3(dshHome(), "company-quota", "token-cache.json");
+}
+function sessionsRoot() {
+  return join3(dshHome(), "sessions");
+}
+function windowDays() {
+  const raw = Number(process.env.COMPANY_USAGE_WINDOW_DAYS);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_WINDOW_DAYS;
+}
+function emptyTotals() {
+  return { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, calls: 0 };
+}
+function addUsage(target, usage) {
+  const read = (key) => {
+    const value = usage[key];
+    return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
+  };
+  target.inputTokens += read("inputTokens");
+  target.outputTokens += read("outputTokens");
+  target.cacheReadTokens += read("cacheReadTokens");
+  target.cacheWriteTokens += read("cacheWriteTokens");
+  target.calls += 1;
+}
+async function listLogs() {
+  const root = sessionsRoot();
+  const logs = [];
+  let workspaces;
+  try {
+    workspaces = await readdir(root, { withFileTypes: true });
+  } catch {
+    return logs;
+  }
+  for (const workspace of workspaces) {
+    if (!workspace.isDirectory()) continue;
+    const workspaceDir = join3(root, workspace.name);
+    let sessions;
+    try {
+      sessions = await readdir(workspaceDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const session of sessions) {
+      if (!session.isDirectory()) continue;
+      const sessionDir = join3(workspaceDir, session.name);
+      let files;
+      try {
+        files = await readdir(sessionDir);
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        if (!LOG_FILE_PATTERN.test(file)) continue;
+        const path = join3(sessionDir, file);
+        try {
+          const info = await stat2(path);
+          logs.push({ path, size: info.size, mtimeMs: info.mtimeMs });
+        } catch {
+        }
+      }
+    }
+  }
+  return logs;
+}
+async function decodeLog(bytes) {
+  const starts = [];
+  let index = bytes.indexOf(ZSTD_MAGIC, 0);
+  while (index >= 0) {
+    starts.push(index);
+    index = bytes.indexOf(ZSTD_MAGIC, index + ZSTD_MAGIC.length);
+  }
+  if (starts.length === 0) return "";
+  starts.push(bytes.length);
+  const chunks = [];
+  for (let frame = 0; frame < starts.length - 1; frame += 1) {
+    const slice = bytes.subarray(starts[frame], starts[frame + 1]);
+    if (slice.length === 0) continue;
+    try {
+      chunks.push(await new Promise((resolve, reject) => {
+        zstdDecompress(slice, (error, result) => {
+          if (error !== null) reject(error);
+          else resolve(result);
+        });
+      }));
+    } catch {
+    }
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+function foldLog(text) {
+  const days = {};
+  let provider;
+  let model;
+  for (const line of text.split("\n")) {
+    if (line === "") continue;
+    let row;
+    try {
+      row = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const data = row.data;
+    if (typeof data !== "object" || data === null) continue;
+    const record = data;
+    if (row.type === "request/header") {
+      const header = record.header;
+      const config = typeof header === "object" && header !== null ? header.config : void 0;
+      const next = typeof config === "object" && config !== null ? config : {};
+      if (typeof next.provider === "string" && typeof next.model === "string") {
+        provider = next.provider;
+        model = next.model;
+      }
+      continue;
+    }
+    if (row.type === "request/context") {
+      if (typeof record.provider === "string" && typeof record.model === "string") {
+        provider = record.provider;
+        model = record.model;
+      }
+      continue;
+    }
+    if (row.type !== "assistant/message") continue;
+    const usage = record.usage;
+    if (typeof usage !== "object" || usage === null) continue;
+    if (provider === void 0 || model === void 0) continue;
+    const time = typeof row.time === "number" ? row.time : void 0;
+    if (time === void 0) continue;
+    const date = localDateKey(time);
+    const byRoute = days[date] ?? (days[date] = {});
+    const byModel = byRoute[provider] ?? (byRoute[provider] = {});
+    const totals = byModel[model] ?? (byModel[model] = emptyTotals());
+    addUsage(totals, usage);
+  }
+  return days;
+}
+async function loadCache() {
+  const empty = { scannedAt: 0, windowDays: windowDays(), files: /* @__PURE__ */ new Map() };
+  let raw;
+  try {
+    raw = await readFile3(cachePath(), "utf8");
+  } catch {
+    return empty;
+  }
+  let doc;
+  try {
+    doc = JSON.parse(raw);
+  } catch {
+    return empty;
+  }
+  if (doc.version !== CACHE_VERSION || typeof doc.files !== "object" || doc.files === null) return empty;
+  const files = /* @__PURE__ */ new Map();
+  for (const [path, fold] of Object.entries(doc.files)) {
+    if (typeof fold?.size !== "number" || typeof fold?.mtimeMs !== "number" || typeof fold.days !== "object") continue;
+    files.set(path, fold);
+  }
+  return {
+    scannedAt: typeof doc.scannedAt === "number" ? doc.scannedAt : 0,
+    windowDays: typeof doc.windowDays === "number" ? doc.windowDays : windowDays(),
+    files
+  };
+}
+async function saveCache(cache2) {
+  const files = {};
+  for (const [path, fold] of cache2.files) files[path] = fold;
+  const doc = {
+    version: CACHE_VERSION,
+    scannedAt: cache2.scannedAt,
+    windowDays: cache2.windowDays,
+    files
+  };
+  const target = cachePath();
+  const temporary = `${target}.tmp`;
+  try {
+    await mkdir2(dirname2(target), { recursive: true });
+    await writeFile2(temporary, JSON.stringify(doc), "utf8");
+    await rename2(temporary, target);
+  } catch {
+  }
+}
+function ensureLoaded2() {
+  if (memory !== void 0) return Promise.resolve(memory);
+  loading2 ??= loadCache().then((cache2) => {
+    memory ??= cache2;
+    loading2 = void 0;
+    return memory;
+  });
+  return loading2;
+}
+async function scanOnce(routeIds) {
+  void routeIds;
+  const cache2 = await ensureLoaded2();
+  const days = cache2.windowDays;
+  const cutoff = Date.now() - days * 864e5;
+  const logs = await listLogs();
+  const present = /* @__PURE__ */ new Set();
+  const pending = [];
+  for (const log of logs) {
+    if (log.mtimeMs < cutoff) continue;
+    present.add(log.path);
+    const cached = cache2.files.get(log.path);
+    if (cached !== void 0 && cached.size === log.size && cached.mtimeMs === log.mtimeMs) continue;
+    pending.push(log);
+  }
+  for (const path of [...cache2.files.keys()]) {
+    if (!present.has(path)) cache2.files.delete(path);
+  }
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < pending.length) {
+      const log = pending[cursor];
+      cursor += 1;
+      if (log === void 0) return;
+      let bytes;
+      try {
+        bytes = await readFile3(log.path);
+      } catch {
+        continue;
+      }
+      const text = await decodeLog(bytes);
+      cache2.files.set(log.path, { size: log.size, mtimeMs: log.mtimeMs, days: foldLog(text) });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(FILES_IN_FLIGHT, pending.length) }, worker));
+  cache2.scannedAt = Date.now();
+  cache2.windowDays = days;
+  await saveCache(cache2);
+}
+function refresh(routeIds) {
+  refreshing ??= scanOnce(routeIds).catch(() => {
+  }).finally(() => {
+    refreshing = void 0;
+  });
+  return refreshing;
+}
+function aggregate(cache2, routeIds) {
+  const usage = /* @__PURE__ */ new Map();
+  for (const fold of cache2.files.values()) {
+    for (const [date, byRoute] of Object.entries(fold.days)) {
+      for (const [provider, byModel] of Object.entries(byRoute)) {
+        if (!routeIds.has(provider)) continue;
+        let models = usage.get(date);
+        if (models === void 0) {
+          models = /* @__PURE__ */ new Map();
+          usage.set(date, models);
+        }
+        for (const [model, totals] of Object.entries(byModel)) {
+          const target = models.get(model) ?? emptyTotals();
+          target.inputTokens += totals.inputTokens;
+          target.outputTokens += totals.outputTokens;
+          target.cacheReadTokens += totals.cacheReadTokens;
+          target.cacheWriteTokens += totals.cacheWriteTokens;
+          target.calls += totals.calls;
+          models.set(model, target);
+        }
+      }
+    }
+  }
+  return usage;
+}
+function toDayTokens(usage) {
+  const days = /* @__PURE__ */ new Map();
+  for (const [date, models] of usage) {
+    const day = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      calls: 0,
+      totalTokens: 0
+    };
+    for (const totals of models.values()) {
+      day.inputTokens += totals.inputTokens;
+      day.outputTokens += totals.outputTokens;
+      day.cacheReadTokens += totals.cacheReadTokens;
+      day.cacheWriteTokens += totals.cacheWriteTokens;
+      day.calls += totals.calls;
+    }
+    day.totalTokens = day.inputTokens + day.cacheReadTokens + day.outputTokens;
+    days.set(date, day);
+  }
+  return days;
+}
+async function collectTokens(ctx, routeIds) {
+  void ctx;
+  const cache2 = await ensureLoaded2();
+  const stale = Date.now() - cache2.scannedAt >= RESCAN_MS;
+  if (cache2.scannedAt === 0) {
+    await refresh(routeIds);
+  } else if (stale) {
+    void refresh(routeIds);
+  }
+  return toDayTokens(aggregate(await ensureLoaded2(), routeIds));
+}
+async function warmTokens(routeIds) {
+  await ensureLoaded2();
+  await refresh(routeIds);
 }
 
 // src/index.ts
@@ -413,9 +728,15 @@ async function overview(ctx, force) {
   const byDate = /* @__PURE__ */ new Map();
   for (const row of legacyRows) byDate.set(row.date, row);
   for (const row of balanceRows) byDate.set(row.date, row);
+  const tokenDays = await collectTokens(ctx, companyRouteIds(routes));
+  for (const [date, tokens] of tokenDays) {
+    const row = byDate.get(date);
+    if (row === void 0) byDate.set(date, { date, cost: 0, tokens: tokens.totalTokens });
+    else row.tokens = tokens.totalTokens;
+  }
   const daily = [...byDate.values()].sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   const todayKey = localDateKey(now);
-  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0 };
+  const today = daily.find((row) => row.date === todayKey) ?? { date: todayKey, cost: 0, tokens: 0 };
   const forecast = quota === void 0 ? void 0 : forecastFrom(quota, now);
   return {
     updatedAt: now,
@@ -487,9 +808,15 @@ function apply(ctx) {
   timer.unref?.();
   const kickoff = setTimeout(sampleOnce, 5e3);
   kickoff.unref?.();
+  const warm = setTimeout(() => {
+    void warmTokens(companyRouteIds(resolveCompanyRoutes(ctx))).catch(() => {
+    });
+  }, 8e3);
+  warm.unref?.();
   ctx.effect(() => () => {
     clearInterval(timer);
     clearTimeout(kickoff);
+    clearTimeout(warm);
   }, "dsh-plugin-company-quota: sampling");
 }
 export {

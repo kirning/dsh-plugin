@@ -1,9 +1,9 @@
 /**
- * 「公司额度」设置分区：额度汇总（剩余/已用/重置）、逐日消费日历（金额、
- * 0 不显示、可翻月）与额度耗尽预测（耗尽日标记，或月末预计剩余）。
+ * 「公司额度」设置分区：额度汇总（剩余/已用/重置）、逐日消费日历（公司网关的
+ * token 数与金额、0 不显示、可翻月）与额度耗尽预测（耗尽日标记，或月末预计剩余）。
  *
- * 逐日消费由宿主半按余额差不出来（相邻两笔余额快照相减），浏览器不做任何计价，
- * API key 也从不下发到浏览器。
+ * 金额由宿主半按余额差不出来（相邻两笔余额快照相减），token 由宿主半扫 DSH 会话
+ * 日志按天合计；浏览器不做任何计价，API key 也从不下发到浏览器。
  * @module dsh-plugin-company-quota/client/CompanyQuotaSection
  */
 
@@ -25,6 +25,14 @@ const RETRY_MS = 10_000
 function money(value: number): string {
   if (!Number.isFinite(value)) return '¥0.00'
   return '¥' + (value < 0.01 ? value.toFixed(4) : value.toFixed(2))
+}
+
+/** token 数：上万才缩写（1.2M / 350K），免得日历格被撑爆。 */
+function tokens(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '0'
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value >= 10_000_000 ? 1 : 2)}M`
+  if (value >= 10_000) return `${Math.round(value / 1000)}K`
+  return String(Math.round(value))
 }
 
 /** 本地日期键。 */
@@ -52,9 +60,11 @@ function Calendar(props: {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
   let monthCost = 0
+  let monthTokens = 0
   for (const row of daily) {
     if (row.date.slice(0, 7) !== monthKey) continue
     monthCost += row.cost
+    monthTokens += row.tokens
   }
 
   const cells: Array<number | null> = []
@@ -85,17 +95,20 @@ function Calendar(props: {
           const key = dateKey(year, month, day)
           const row = byDate.get(key)
           const cost = row === undefined ? 0 : row.cost
+          const used = row === undefined ? 0 : row.tokens
           const isEnd = showForecast && !forecast.monthly && forecast.predictedKey === key
           const isLeft = showForecast && forecast.monthly && forecast.lastKey === key
           const cellStyle: CSSProperties = {
             ...styles.cell,
-            ...(isEnd ? styles.cellEnd : isLeft ? styles.cellLeft : cost > 0 ? styles.cellUsed : null),
+            ...(isEnd ? styles.cellEnd : isLeft ? styles.cellLeft : used > 0 || cost > 0 ? styles.cellUsed : null),
           }
+          const title = used > 0 || cost > 0 ? t('tooltip', { date: key, tokens: used.toLocaleString('en-US'), cost: money(cost) }) : key
           return (
-            <span key={key} style={cellStyle} title={cost > 0 ? `${key} ${money(cost)}` : key}>
+            <span key={key} style={cellStyle} title={title}>
               <span style={styles.cellDay}>{day}</span>
-              {(cost > 0 || isEnd || isLeft) && (
+              {(used > 0 || cost > 0 || isEnd || isLeft) && (
                 <span style={styles.cellBody}>
+                  {used > 0 && <span style={styles.cellTokens}>{tokens(used)}</span>}
                   {cost > 0 && <span style={styles.cellCost}>{money(cost)}</span>}
                   {isEnd && <span style={styles.badgeEnd}>{t('badgeEnd')}</span>}
                   {isLeft && <span style={styles.badgeLeft}>{t('badgeLeft', { left: money(forecast.projectedLeft) })}</span>}
@@ -107,7 +120,9 @@ function Calendar(props: {
       </div>
 
       <div style={styles.muted}>
-        {daily.length === 0 ? t('none') : t('monthTotal', { cost: money(monthCost) })}
+        {daily.length === 0
+          ? t('none')
+          : t('monthTotal', { tokens: tokens(monthTokens), cost: money(monthCost) })}
       </div>
       {showForecast && (
         <div style={styles.muted}>
@@ -207,8 +222,9 @@ export function CompanyQuotaSection(props: CompanyQuotaSectionProps): ReactNode 
         <span style={styles.stat}>
           <span style={styles.statLabel}>{t('today')}</span>
           <span style={styles.statValue}>
-            {doc === null ? '—' : money(doc.today.cost)}
+            {doc === null ? '—' : t('tokens', { tokens: tokens(doc.today.tokens) })}
           </span>
+          {doc !== null && doc.today.cost > 0 && <span style={styles.muted}>{money(doc.today.cost)}</span>}
         </span>
         <span style={styles.stat}>
           <span style={styles.statLabel}>{t('reset', { date: quota?.resetsAt === undefined ? '—' : new Date(quota.resetsAt).toLocaleDateString() })}</span>

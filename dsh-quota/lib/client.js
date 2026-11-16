@@ -36,6 +36,12 @@ function money(value) {
   if (!Number.isFinite(value)) return "\xA50.00";
   return "\xA5" + (value < 0.01 ? value.toFixed(4) : value.toFixed(2));
 }
+function tokens(value) {
+  if (!Number.isFinite(value) || value <= 0) return "0";
+  if (value >= 1e6) return `${(value / 1e6).toFixed(value >= 1e7 ? 1 : 2)}M`;
+  if (value >= 1e4) return `${Math.round(value / 1e3)}K`;
+  return String(Math.round(value));
+}
 function dateKey(year, monthIndex, day) {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -51,9 +57,11 @@ function Calendar(props) {
   const firstWeekday = (new Date(year, month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let monthCost = 0;
+  let monthTokens = 0;
   for (const row of daily) {
     if (row.date.slice(0, 7) !== monthKey) continue;
     monthCost += row.cost;
+    monthTokens += row.tokens;
   }
   const cells = [];
   for (let i = 0; i < firstWeekday; i += 1) cells.push(null);
@@ -75,22 +83,25 @@ function Calendar(props) {
       const key = dateKey(year, month, day);
       const row = byDate.get(key);
       const cost = row === void 0 ? 0 : row.cost;
+      const used = row === void 0 ? 0 : row.tokens;
       const isEnd = showForecast && !forecast.monthly && forecast.predictedKey === key;
       const isLeft = showForecast && forecast.monthly && forecast.lastKey === key;
       const cellStyle = {
         ...styles.cell,
-        ...isEnd ? styles.cellEnd : isLeft ? styles.cellLeft : cost > 0 ? styles.cellUsed : null
+        ...isEnd ? styles.cellEnd : isLeft ? styles.cellLeft : used > 0 || cost > 0 ? styles.cellUsed : null
       };
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: cellStyle, title: cost > 0 ? `${key} ${money(cost)}` : key, children: [
+      const title = used > 0 || cost > 0 ? t("tooltip", { date: key, tokens: used.toLocaleString("en-US"), cost: money(cost) }) : key;
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: cellStyle, title, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellDay, children: day }),
-        (cost > 0 || isEnd || isLeft) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.cellBody, children: [
+        (used > 0 || cost > 0 || isEnd || isLeft) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.cellBody, children: [
+          used > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellTokens, children: tokens(used) }),
           cost > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.cellCost, children: money(cost) }),
           isEnd && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.badgeEnd, children: t("badgeEnd") }),
           isLeft && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.badgeLeft, children: t("badgeLeft", { left: money(forecast.projectedLeft) }) })
         ] })
       ] }, key);
     }) }),
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: daily.length === 0 ? t("none") : t("monthTotal", { cost: money(monthCost) }) }),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: daily.length === 0 ? t("none") : t("monthTotal", { tokens: tokens(monthTokens), cost: money(monthCost) }) }),
     showForecast && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: styles.muted, children: forecast.monthly ? t("forecastLeft", { daily: money(forecast.daily), left: money(forecast.projectedLeft) }) : t("forecastEnd", { daily: money(forecast.daily), date: forecast.predictedKey }) })
   ] });
 }
@@ -162,7 +173,8 @@ function CompanyQuotaSection(props) {
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { style: styles.stat, children: [
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statLabel, children: t("today") }),
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statValue, children: doc === null ? "\u2014" : money(doc.today.cost) })
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statValue, children: doc === null ? "\u2014" : t("tokens", { tokens: tokens(doc.today.tokens) }) }),
+        doc !== null && doc.today.cost > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.muted, children: money(doc.today.cost) })
       ] }),
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.stat, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: styles.statLabel, children: t("reset", { date: quota?.resetsAt === void 0 ? "\u2014" : new Date(quota.resetsAt).toLocaleDateString() }) }) })
     ] }),
@@ -241,32 +253,34 @@ var NS = "company-quota";
 var zh = {
   "nav": "\u516C\u53F8\u989D\u5EA6",
   "title": "\u516C\u53F8\u989D\u5EA6",
-  "hint": "\u6BCF\u683C\u4E00\u5929\uFF1A\u53F3\u4E0A\u89D2\u4E3A\u65E5\u671F\uFF0C\u4E2D\u95F4\u662F\u5F53\u5929\u7684\u6D88\u8D39\u91D1\u989D\uFF08\u6309\u4F59\u989D\u5DEE\u8BA1\u7B97\uFF09\uFF1B0 \u4E0D\u663E\u793A\uFF0C\u53EF\u7FFB\u6708\u3002",
+  "hint": "\u6BCF\u683C\u4E00\u5929\uFF1A\u53F3\u4E0A\u89D2\u4E3A\u65E5\u671F\uFF0C\u4E2D\u95F4\u662F\u5F53\u5929\u516C\u53F8\u7F51\u5173\u6D88\u8017\u7684 token \u6570\uFF0C\u5C0F\u5B57\u662F\u91D1\u989D\uFF08\u4F59\u989D\u5DEE\uFF09\uFF1B\u53EF\u7FFB\u6708\u3002",
   "loading": "\u6B63\u5728\u52A0\u8F7D\u989D\u5EA6\u2026",
   "error": "\u67E5\u8BE2\u5931\u8D25\uFF1A{error}",
   "noQuota": "\u989D\u5EA6\u4E0D\u53EF\u7528",
   "remaining": "\u5269\u4F59\u989D\u5EA6",
   "used": "\u672C\u6708\u5DF2\u7528",
   "reset": "{date} \u91CD\u7F6E",
-  "today": "\u4ECA\u65E5\u5DF2\u7528",
+  "today": "\u4ECA\u65E5\u6D88\u8017",
+  "tokens": "{tokens} tokens",
   "account": "MIP \u8D26\u53F7 {id}",
   "refresh": "\u5237\u65B0",
   "refreshing": "\u5237\u65B0\u4E2D\u2026",
   "updated": "\u66F4\u65B0\u4E8E {time}",
-  "monthTotal": "\u672C\u6708\u5408\u8BA1 {cost}",
-  "none": "\u6682\u65E0\u4F59\u989D\u5FEB\u7167\uFF08\u5F00\u542F\u63D2\u4EF6\u540E\u6BCF\u5929\u81F3\u5C11\u91C7\u4E00\u6B21\u4F59\u989D\uFF09",
+  "monthTotal": "\u672C\u6708\u5408\u8BA1 {tokens} tokens \xB7 {cost}",
+  "none": "\u6682\u65E0\u4F59\u989D\u5FEB\u7167\u4E0E\u7528\u91CF\u8BB0\u5F55\uFF08\u63D2\u4EF6\u8FD0\u884C\u540E\u6BCF\u5929\u81EA\u52A8\u7EDF\u8BA1\uFF09",
   "prev": "\u4E0A\u4E00\u6708",
   "next": "\u4E0B\u4E00\u6708",
   "weekdays": "\u4E00,\u4E8C,\u4E09,\u56DB,\u4E94,\u516D,\u65E5",
   "forecastEnd": "\u6309\u5F53\u524D\u5747\u503C {daily}/\u5929\uFF0C\u9884\u8BA1 {date} \u7528\u5B8C",
   "forecastLeft": "\u6309\u5F53\u524D\u5747\u503C {daily}/\u5929\uFF0C\u6708\u5E95\u9884\u8BA1\u5269\u4F59 {left}",
   "badgeEnd": "\u9884\u8BA1\u7528\u5B8C",
-  "badgeLeft": "\u5269 {left}"
+  "badgeLeft": "\u5269 {left}",
+  "tooltip": "{date} \xB7 {tokens} tokens \xB7 {cost}"
 };
 var en = {
   "nav": "Company Quota",
   "title": "Company Quota",
-  "hint": "One cell per day: the date in the corner, that day's spend (balance difference) in the middle; zero days stay blank and months can be paged.",
+  "hint": "One cell per day: the date in the corner, company-gateway tokens consumed that day in the middle, spend (balance difference) underneath; months can be paged.",
   "loading": "Loading quota\u2026",
   "error": "Query failed: {error}",
   "noQuota": "Quota unavailable",
@@ -274,19 +288,21 @@ var en = {
   "used": "Used this month",
   "reset": "resets {date}",
   "today": "Today",
+  "tokens": "{tokens} tokens",
   "account": "MIP account {id}",
   "refresh": "Refresh",
   "refreshing": "Refreshing\u2026",
   "updated": "Updated {time}",
-  "monthTotal": "Month total {cost}",
-  "none": "No balance snapshots yet (the balance is sampled daily once the plugin runs)",
+  "monthTotal": "Month total {tokens} tokens \xB7 {cost}",
+  "none": "No balance snapshots or usage records yet (the plugin samples them daily once it runs)",
   "prev": "Previous month",
   "next": "Next month",
   "weekdays": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
   "forecastEnd": "At the current {daily}/day, projected to run out on {date}",
   "forecastLeft": "At the current {daily}/day, about {left} left at month end",
   "badgeEnd": "runs out",
-  "badgeLeft": "left {left}"
+  "badgeLeft": "left {left}",
+  "tooltip": "{date} \xB7 {tokens} tokens \xB7 {cost}"
 };
 
 // src/client/index.ts

@@ -133,7 +133,7 @@ export async function dailySpend(nowMs: number): Promise<DailyRow[]> {
     const [date, current] = entries[index]
     const previous = entries[index - 1][1]
     const spent = previous.remaining - current.remaining
-    rows.push({ date, cost: spent > 0 ? Math.round(spent * 1e6) / 1e6 : 0 })
+    rows.push({ date, cost: spent > 0 ? Math.round(spent * 1e6) / 1e6 : 0, tokens: 0 })
   }
   return rows
 }

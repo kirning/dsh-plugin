@@ -28,6 +28,12 @@ export interface DailyRow {
   date: string
   /** 当天消耗（CNY）：由相邻两笔余额快照相减得出，余额变多的一天按 0。 */
   cost: number
+  /**
+   * 当天的公司路由 token 消耗（输入 + 缓存命中 + 输出）。
+   * 来源是 DSH 自己的会话日志：同一份数据宿主用来显示上下文与缓存命中，
+   * 这里只统计 provider 属于公司网关的那些调用。
+   */
+  tokens: number
 }
 
 /** 额度接口给出的当月额度事实。 */
