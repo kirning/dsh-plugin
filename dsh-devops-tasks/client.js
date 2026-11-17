@@ -113,7 +113,8 @@ window.__ModuleLoader__.load({
       ".dt-noteInput{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;padding:4px 6px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:6px;background:var(--dsw-specific-input-major);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:1.5;outline:none}",
       ".dt-cardMeta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
       // Card anatomy: top (status + title + pin), middle (note + figures), bottom.
-      ".dt-cardFigs{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      ".dt-cardFigs{display:flex;align-items:center;gap:6px;margin-top:auto;padding-left:16px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      ".dt-cardMid{display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-height:0}",
       ".dt-cardBottom{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:2px;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary)}",
       ".dt-card[data-highlight]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}",
       ".dt-pager{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dsw-alias-label-tertiary)}",
@@ -142,6 +143,9 @@ window.__ModuleLoader__.load({
       ".dt-dialogTitle{margin:0;font-size:14px;font-weight:700}",
       ".dt-dialogBody{font-size:12.5px;color:var(--dsw-alias-label-secondary);line-height:1.6;overflow-wrap:anywhere}",
       ".dt-dialogRow{display:flex;justify-content:flex-end;gap:8px}",
+      ".dt-chatDialog{width:min(480px,92vw)}",
+      ".dt-chatText{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;padding:8px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:1.5}",
+      ".dt-btn[data-primary]{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}",
       ".dt-toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:40;max-width:80%;padding:6px 14px;border-radius:999px;border:1px solid var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-bg-layer-2);font-size:12px;overflow-wrap:anywhere}",
       ".dt-toast[data-kind=ok]{border-color:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-state-success-primary)}",
     ].join("");
@@ -301,6 +305,15 @@ window.__ModuleLoader__.load({
       "sess.locate": "在侧栏定位",
       "sess.locateHint": "展开左侧工作区并定位到该会话",
       "sess.locateFailed": "没有在侧栏找到这个会话，可能已被归档。",
+      "sess.chat": "聊天",
+      "sess.chatHint": "给这个会话发一条消息",
+      "sess.chatTitle": "发给「{title}」",
+      "sess.chatPlaceholder": "输入要发送的内容",
+      "sess.chatHelp": "Enter 发送，Shift+Enter 换行",
+      "sess.send": "发送",
+      "sess.sending": "发送中…",
+      "sess.sent": "已发送",
+      "sess.sendFailed": "发送失败：{message}",
     };
 
     const en = {
@@ -440,6 +453,15 @@ window.__ModuleLoader__.load({
       "sess.locate": "Locate in sidebar",
       "sess.locateHint": "Expand the left workspace list and point at this session",
       "sess.locateFailed": "This session is not in the sidebar; it may be archived.",
+      "sess.chat": "Chat",
+      "sess.chatHint": "Send a message to this session",
+      "sess.chatTitle": "Message \"{title}\"",
+      "sess.chatPlaceholder": "Type the message to send",
+      "sess.chatHelp": "Enter sends, Shift+Enter adds a line",
+      "sess.send": "Send",
+      "sess.sending": "Sending…",
+      "sess.sent": "Sent",
+      "sess.sendFailed": "Send failed: {message}",
     };
     // #endregion
 
@@ -1052,6 +1074,23 @@ window.__ModuleLoader__.load({
         h("path", { d: "M6.9 9.1L2.4 13.6" }));
     }
 
+    /** Chat glyph for the card's "send a message" action. */
+    function ChatIcon() {
+      return h("svg", {
+        viewBox: "0 0 16 16",
+        width: 14,
+        height: 14,
+        fill: "none",
+        stroke: "currentColor",
+        strokeWidth: 1.2,
+        strokeLinecap: "round",
+        strokeLinejoin: "round",
+        "aria-hidden": "true",
+      },
+        h("path", { d: "M2.2 3.6h11.6v7.2H7.4L4.2 13.4v-2.6H2.2z" }),
+        h("path", { d: "M5 6.4h6M5 8.6h4" }));
+    }
+
     /** Kebab glyph for the card menu. */
     function KebabIcon() {
       return h("svg", {
@@ -1613,8 +1652,9 @@ window.__ModuleLoader__.load({
                 props.onTogglePin(row);
               },
             }, officialPin === null ? h(PinIcon, { filled: row.pinned }) : h(officialPin, { size: 14 })))),
-        h(NoteBox, { t, note: row.note, onSave: (text) => props.onSaveNote(row, text) }),
-        figs.length === 0 ? null : h("div", { className: "dt-cardFigs" }, figs),
+        h("div", { className: "dt-cardMid" },
+          h(NoteBox, { t, note: row.note, onSave: (text) => props.onSaveNote(row, text) }),
+          figs.length === 0 ? null : h("div", { className: "dt-cardFigs" }, figs)),
         h("div", { className: "dt-cardBottom" },
           h("span", { key: "ws-wrap", className: "dt-ws-wrap" },
             h(FolderIcon),
@@ -1631,6 +1671,16 @@ window.__ModuleLoader__.load({
                 props.onLocate(row);
               },
             }, h(LocateIcon)),
+            h("button", {
+              type: "button",
+              className: "dt-iconBtn dt-chat",
+              title: t("sess.chatHint"),
+              "aria-label": t("sess.chat"),
+              onClick: (event) => {
+                event.stopPropagation();
+                props.onChat(row);
+              },
+            }, h(ChatIcon)),
             h("button", {
               type: "button",
               className: "dt-iconBtn dt-more",
@@ -1697,6 +1747,56 @@ window.__ModuleLoader__.load({
             h("button", { type: "button", className: "dt-btn", onClick: props.onConfirm }, t("sess.archiveConfirm")))));
     }
 
+    /** Modal that sends one plain-text prompt into a session's inbox. */
+    function ChatDialog(props) {
+      const t = props.t;
+      const [text, setText] = react.useState("");
+      const [sending, setSending] = react.useState(false);
+      const area = react.useRef(null);
+      react.useEffect(() => {
+        if (area.current !== null) area.current.focus();
+      }, []);
+      const send = () => {
+        const body = text.trim();
+        if (body === "" || sending) return;
+        setSending(true);
+        Promise.resolve(props.onSend(body)).then(() => {
+          setSending(false);
+          props.onSent();
+        }).catch(() => setSending(false));
+      };
+      const title = props.title === "" ? t("sess.untitled") : props.title;
+      return h("div", { className: "dt-overlay", role: "dialog", "aria-modal": "true", onClick: props.onCancel },
+        h("div", { className: "dt-dialog dt-chatDialog", onClick: (event) => event.stopPropagation() },
+          h("h3", { className: "dt-dialogTitle" }, fill(t("sess.chatTitle"), { title })),
+          h("textarea", {
+            ref: area,
+            className: "dt-chatText",
+            value: text,
+            rows: 4,
+            placeholder: t("sess.chatPlaceholder"),
+            "aria-label": t("sess.chatPlaceholder"),
+            onChange: (event) => setText(event.target.value),
+            onKeyDown: (event) => {
+              if (event.key === "Escape") props.onCancel();
+              if (event.key === "Enter" && event.shiftKey === false) {
+                event.preventDefault();
+                send();
+              }
+            },
+          }),
+          h("div", { className: "dt-dialogRow" },
+            h("span", { className: "dt-muted", style: { fontSize: "11.5px", marginRight: "auto" } }, t("sess.chatHelp")),
+            h("button", { type: "button", className: "dt-btn", onClick: props.onCancel }, t("sess.cancel")),
+            h("button", {
+              type: "button",
+              className: "dt-btn",
+              "data-primary": "",
+              disabled: text.trim() === "" || sending,
+              onClick: send,
+            }, sending ? t("sess.sending") : t("sess.send")))));
+    }
+
     /** The sessions tab: workspace filter, search, and the card grid. */
     function SessionsView(props) {
       const t = props.t;
@@ -1709,6 +1809,7 @@ window.__ModuleLoader__.load({
       const [menuFor, setMenuFor] = react.useState(null);
       const [renaming, setRenaming] = react.useState(null);
       const [archiving, setArchiving] = react.useState(null);
+      const [chatting, setChatting] = react.useState(null);
       const [toast, setToast] = react.useState(null);
       // Workspaces chosen in the highlight picker get a border on their cards.
       const [highlight, setHighlight] = react.useState([]);
@@ -1730,10 +1831,16 @@ window.__ModuleLoader__.load({
         setHighlight((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : prev.concat(id)));
       };
 
-      // Close the card menu on any outside click or Escape.
+      // Close the card menu on any outside click or Escape. A click inside the
+      // open menu must survive: the menu items act on `click`, and removing the
+      // menu on `mousedown` would swallow every one of those actions.
       react.useEffect(() => {
         if (menuFor === null) return undefined;
-        const onDown = () => setMenuFor(null);
+        const onDown = (event) => {
+          const target = event.target;
+          if (target !== null && target !== undefined && typeof target.closest === "function" && target.closest(".dt-menu") !== null) return;
+          setMenuFor(null);
+        };
         const onKey = (event) => {
           if (event.key === "Escape") setMenuFor(null);
         };
@@ -1763,6 +1870,12 @@ window.__ModuleLoader__.load({
       };
 
       const open = (row) => ops.open(row.id);
+      const chat = (row) => {
+        setChatting(row);
+      };
+      const sendChat = (row, text) => ops.send(row.id, text).then(() => {
+        notify(t("sess.sent"), "ok");
+      }).catch(fail(prefixOf("sess.sendFailed", t)));
       const togglePin = (row) => {
         successfully(row.pinned ? ops.unpin(row.id) : ops.pin(row.id));
       };
@@ -1907,11 +2020,15 @@ window.__ModuleLoader__.load({
                 onOpen: open,
                 onTogglePin: togglePin,
                 onLocate: locate,
+                onChat: chat,
                 onSaveNote: saveNote,
                 onToggleMenu: (target) => setMenuFor((prev) => (prev === target.id ? null : target.id)),
                 menu: menuProps(row),
               }))),
-          h("div", { className: "dt-footer" }, fill(t("sess.count"), { n: visible.length }))),
+          h("div", {
+            className: "dt-footer",
+            "data-archived": String(workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.archivedSessionIds) ? workspaces.archivedSessionIds.length : 0),
+          }, fill(t("sess.count"), { n: visible.length }))),
 
         renaming === null ? null : h(RenameDialog, {
           t,
@@ -1933,6 +2050,14 @@ window.__ModuleLoader__.load({
             setArchiving(null);
             successfully(ops.archive(target.id, true));
           },
+        }),
+
+        chatting === null ? null : h(ChatDialog, {
+          t,
+          title: chatting.title,
+          onCancel: () => setChatting(null),
+          onSend: (text) => sendChat(chatting, text),
+          onSent: () => setChatting(null),
         }),
 
         toast === null ? null : h("div", { className: "dt-toast", "data-kind": toast.kind, role: "status" }, toast.text));
@@ -1998,7 +2123,25 @@ window.__ModuleLoader__.load({
       const remote = ctx.remote;
       const ops = {
         open(sessionId) {
+          // The platform refuses to reopen archived sessions; so do we, instead
+          // of letting the shell swap the conversation view for nothing.
+          const snapshot = service("workspaces");
+          const listed = snapshot !== null && snapshot !== undefined && snapshot.list !== undefined && typeof snapshot.list.getSnapshot === "function"
+            ? snapshot.list.getSnapshot()
+            : null;
+          if (listed !== null && Array.isArray(listed.archivedSessionIds) && listed.archivedSessionIds.includes(sessionId)) return;
           uiWorkspace.openSession(sessionId);
+        },
+        send(sessionId, text) {
+          const requestId = typeof crypto !== "undefined" && crypto !== null && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : "dt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+          return remote.session.prompt({
+            requestId,
+            sessionId,
+            mode: "queue",
+            content: [{ type: "text", text }],
+          }).then(unwrap);
         },
         pin(sessionId) {
           return uiWorkspace.pinSession(sessionId);

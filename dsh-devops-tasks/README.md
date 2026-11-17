@@ -10,6 +10,8 @@
   （这两个图标常显，不再只在 hover 时出现）
 - 备注（点一下就地编辑，Enter 保存、Esc 取消，存 `localStorage`）
 - 定位图标：在左侧「工作区」里展开分组、必要时展开被折叠的会话并滚动高亮该会话
+- 聊天图标（定位旁边）：弹出发送框，Enter 发送、Shift+Enter 换行，把这段文本作为一条新消息投给该会话
+  （投递即排队，不会打断正在跑的那一轮）
 - 三点菜单：置顶 / 取消置顶、重命名、分叉会话、复制 Session ID、在应用打开、归档会话（运行中的会先停下来再归档）
 - 工具栏：工作区筛选（全部 / 各工作区 / 未分组）+ **工作区凸显**（多选勾选，被选中的工作区给卡片加边框）
   + 标题搜索（标题与备注都能搜）
@@ -112,6 +114,7 @@ DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/lis
 | 打开 / 分叉 / 归档 | `ctx.uiWorkspace.openSession/forkSession/archiveSession` |
 | 重命名 | `ctx.remote.session.rename({ sessionId, title })` → `RemoteResult` |
 | 在应用打开 | `ctx.remote.session.openWorkspacePath({ path })` → `RemoteResult` |
+| 给会话发消息 | `ctx.remote.session.prompt({ requestId, sessionId, mode: "queue", content: [{ type: "text", text }] })` → `RemoteResult` |
 | 侧栏定位 | DOM：`[data-row-key="workspace:…"]` 分组头、`[data-row-key="overflow:…"]`、`[data-row-key="session:…"]` |
 
 状态映射与 DSH 侧边栏一致：`pendingInteraction.kind` 为 `approval`/`plan-review`/`question` 时算「待回答」类，
@@ -136,6 +139,8 @@ dsh plugin --profile web install
 - 「我创建的」不包含平台 `COMPLETED` 之外的历史（例如已删除的工作项）。
 - 所属系统勾选只影响本地过滤，宿主仍会把所有系统的行取回来（平台不支持按系统查询）。
 - 依赖 `devops-mcp-agile` MCP 服务的 PAT（`mcpu_…`），PAT 轮换后插件会在 60s 内自动用新端点。
+- 复制 Session ID 依赖浏览器的剪贴板授权（`navigator.clipboard.writeText`，失败时回退 `document.execCommand("copy")`）；
+  自动化探针里没有真实点击手势时会显示「复制失败」
 - 会话管理没有「取消归档」入口（归档动作直接调 `archiveSession`，恢复走 DSH 侧栏自己的「全部对话」）。
 - 备注只存在本机 `localStorage`（key `dsh-devops-tasks:notes`），不进会话、不上传。
 - 侧栏定位走 DOM（DSH 没有公开的 reveal API）：分组是虚拟列表，代码会点开分组、点「展开其余 N 个会话」并轮询等待行出现，最多约 4s。
