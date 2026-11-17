@@ -15,9 +15,11 @@
 
 **Devops 管理**
 
-- **三张计数卡片**：待办（待处理）/ 待审（待我评审）/ 我创建的，各自带分类明细（故事、任务、提醒、缺陷…）
-- **三个页签的列表**：编号（点一下复制）、标题、类型、状态、优先级、任务点数、截止日期（过期标红）、所属系统
-- **搜索框**：在前端按编号/标题/系统过滤，不发新请求
+- **四张卡片**：待办 / 待审 / 我创建的（各自带分类明细）+ **任务点数合计**（跟着当前列表一起算，
+  换系统勾选、加搜索词、切状态/类型都会立刻变）
+- **三个页签的列表**：编号（点一下在 DevOps 网页打开）、标题、类型、状态、优先级、任务点数、截止日期（过期标红）、所属系统
+- **三个筛选**：状态、类型、所属系统（多选勾选，默认全选，勾选结果记在 `localStorage`）
+- **搜索框**：在前端按编号/标题过滤，不发新请求
 - **刷新**：手动强制刷新，并显示数据来自缓存还是刚取回
 
 数据来自 DevSecOps（`devsecops.midea.com`）的 MCP OpenApi 通道，也就是 DSH 里那个
@@ -75,9 +77,17 @@ DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/lis
 
 ## 数据口径
 
-- 待办 = `toDoStatus: NOT_STARTED`，scene `to_do_item_all`
+- 待办 = `toDoStatus: NOT_STARTED`，scene `to_do_item_all`（= 责任人是我）
 - 待审 = `toDoStatus: NOT_REVIEW`，6 个评审 scene（测试计划/测试报告/里程碑/通用流程/审批流/共享用例）
-- 我创建的 = `toDoStatus: CREATED`，4 个 scene（需求/缺陷/审批流程/通用评审流程）
+- 我创建的 = **并集**：`toDoStatus: CREATED` 的 4 个 scene（需求/缺陷/审批流程/通用评审流程）
+  ∪ `toDoStatus: COMPLETED` + `conditionList: [{ key: "fc_creator", operator: "in", value: "姓名(账号)" }]`。
+  后者补上了「我创建但不属于上面 4 个 scene」的故事与任务（实测 122 行：缺陷 23 + 需求 50 + 故事/任务 49）。
+  账号取自待办桶第一行的 `fc_responsible_person`（待办的定义就是指派给我），可用 `DSH_DEVOPS_ME` 覆盖。
+- 平台**没有**「开发负责人」字段（`fc_dev_owner` 在所有模板里都为空），所以「我是开发负责人」用
+  「待办（责任人是我）+ 我经办的（COMPLETED）」覆盖；参与但不是我建、也不是派给我的，平台只提供
+  `COMPLETED`（= 我经办的，共 547 条），本面板不整库翻页。
+- `listItem` 的 `systemId` **不参与过滤**（传了也回多系统混合数据），所以「只查勾选系统」是客户端对
+  快照行的过滤，效果等价、也不多发请求；`orderByList` 同样无效，排序一律在客户端做。
 - 任务点数 = 模板字段 `456e2950-4644-4d9c-b99f-ae2ef52311aa`（float，非必填；故事/任务模板共用这个 fieldCode），
   空值显示 `-`
 - 计数走 `getCountAutoZone?zone=yellow`（组织不支持红黄区时 `isShowZoneSwitch` 为 false）
@@ -117,8 +127,10 @@ dsh plugin --profile web install
 
 ## 已知限制
 
-- 工作项深链没有稳定规则（平台 `process_link` 对 story/detail 链接返回未命中），所以编号只做「复制」，不做跳转。
-- 「我创建的」只覆盖上述 4 个 scene，不包含我创建但已归档/删除的工作项。
+- 编号跳转用固定规则 `https://devsecops.midea.com/agile/demand/list?sysId=<systemId>&detailId=<编号>`
+  （`process_link` 对 story/detail 链接返回未命中，所以这是实测可用的入口，不是官方文档保证的深链）。
+- 「我创建的」不包含平台 `COMPLETED` 之外的历史（例如已删除的工作项）。
+- 所属系统勾选只影响本地过滤，宿主仍会把所有系统的行取回来（平台不支持按系统查询）。
 - 依赖 `devops-mcp-agile` MCP 服务的 PAT（`mcpu_…`），PAT 轮换后插件会在 60s 内自动用新端点。
 - 会话管理没有「取消归档」入口（归档动作直接调 `archiveSession`，恢复走 DSH 侧栏自己的「全部对话」）。
 - 备注只存在本机 `localStorage`（key `dsh-devops-tasks:notes`），不进会话、不上传。

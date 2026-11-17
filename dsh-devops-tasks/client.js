@@ -44,6 +44,9 @@ window.__ModuleLoader__.load({
       ".dt-tile{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;background:var(--dsw-alias-bg-layer-2);cursor:pointer;text-align:left;font-family:inherit;color:inherit}",
       ".dt-tile:hover{background:var(--dsw-alias-interactive-bg-hover)}",
       ".dt-tile[data-active]{border-color:var(--dsw-alias-state-business-primary);box-shadow:inset 0 0 0 1px var(--dsw-alias-state-business-primary)}",
+      ".dt-tile[data-static]{cursor:default}",
+      ".dt-tile[data-static]:hover{background:var(--dsw-alias-bg-layer-2)}",
+      ".dt-tile[data-tone='accent'] .dt-tileValue{color:var(--dsw-alias-state-business-primary)}",
       ".dt-tileTop{display:flex;align-items:baseline;gap:8px}",
       ".dt-tileLabel{font-size:12px;color:var(--dsw-alias-label-secondary)}",
       ".dt-tileValue{font-size:20px;font-weight:700;line-height:1.2}",
@@ -57,6 +60,7 @@ window.__ModuleLoader__.load({
       ".dt-btn{background:none;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;padding:5px 12px;font-family:inherit;font-size:12px;color:var(--dsw-alias-label-primary);cursor:pointer;white-space:nowrap}",
       ".dt-btn:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}",
       ".dt-btn:disabled{opacity:.45;cursor:default}",
+      ".dt-btn[data-active]{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-label-primary)}",
       ".dt-body{display:flex;flex:1;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}",
       ".dt-tableWrap{flex:none;border:1px solid var(--dsw-alias-border-l1);border-radius:10px;overflow:auto}",
       ".dt-table{border-collapse:collapse;width:100%;font-size:12.5px}",
@@ -80,6 +84,13 @@ window.__ModuleLoader__.load({
       ".dt-notice[data-kind=info]{color:var(--dsw-alias-label-secondary)}",
       ".dt-idBtn{background:none;border:none;padding:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--dsw-alias-state-business-primary);cursor:pointer;white-space:nowrap}",
       ".dt-idBtn:hover{text-decoration:underline}",
+      "a.dt-idBtn{text-decoration:none}",
+      ".dt-picker{position:relative}",
+      ".dt-pickerMenu{position:absolute;top:calc(100% + 4px);left:0;z-index:40;min-width:230px;max-height:260px;overflow-y:auto;padding:8px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 8px 24px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:4px}",
+      ".dt-pickerItem{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--dsw-alias-label-primary);cursor:pointer;white-space:nowrap}",
+      ".dt-pickerItem input{accent-color:var(--dsw-alias-state-business-primary);cursor:pointer}",
+      ".dt-pickerHead{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--dsw-alias-separator-primary);padding-bottom:6px;margin-bottom:2px}",
+      ".dt-pickerHead .dt-btn{padding:2px 8px;font-size:11.5px}",
       ".dt-spinner{display:inline-block;width:11px;height:11px;border:2px solid var(--dsw-alias-state-business-primary);border-top-color:transparent;border-radius:50%;vertical-align:-1px;animation:dt-spin .8s linear infinite}",
       "@keyframes dt-spin{to{transform:rotate(360deg)}}",
       ".dt-footer{flex:none;font-size:11.5px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}",
@@ -176,9 +187,21 @@ window.__ModuleLoader__.load({
       "empty.review": "没有等待你评审的事项。",
       "empty.created": "你最近没有创建的事项。",
       "empty.search": "没有匹配的条目。",
-      "hint.todo": "按截止日期从近到远排列；点击编号可复制到剪贴板。",
+      "hint.todo": "按截止日期从近到远排列；点击编号在 DevOps 网页打开。",
       "hint.review": "汇总各类等待你评审的事项。",
-      "hint.created": "你创建的缺陷、需求、审批与通用流程。",
+      "hint.created": "你创建的缺陷、需求、故事与任务（含已完结）。",
+      "filter.status": "状态",
+      "filter.type": "类型",
+      "filter.all": "全部",
+      "filter.system": "所属系统",
+      "filter.systemAll": "全选",
+      "filter.systemClear": "清空",
+      "filter.systemCount": "已选 {n}/{m}",
+      "filter.systemEmpty": "只显示勾选的系统，当前没有勾选。",
+      "tile.points": "任务点数",
+      "tile.pointsHint": "勾选 {n} 个系统的合计",
+      "tile.pointsNone": "没有可统计的系统",
+      "col.openDetail": "在 DevOps 网页打开",
       "state.fetched": "更新于 {time}",
       "state.stale": "数据来自缓存",
       "state.error": "取数失败",
@@ -288,9 +311,21 @@ window.__ModuleLoader__.load({
       "empty.review": "Nothing waiting for your review.",
       "empty.created": "You have not created anything recently.",
       "empty.search": "No matching item.",
-      "hint.todo": "Sorted by due date, nearest first. Click an id to copy it.",
+      "hint.todo": "Sorted by due date, nearest first. Click an id to open it in DevOps.",
       "hint.review": "Every kind of item waiting for your review.",
-      "hint.created": "Issues, demands, approvals and flows you created.",
+      "hint.created": "Issues, demands, stories and tasks you created, finished ones included.",
+      "filter.status": "Status",
+      "filter.type": "Type",
+      "filter.all": "All",
+      "filter.system": "Systems",
+      "filter.systemAll": "Select all",
+      "filter.systemClear": "Clear",
+      "filter.systemCount": "{n}/{m} selected",
+      "filter.systemEmpty": "Only checked systems are shown; none is checked.",
+      "tile.points": "Task points",
+      "tile.pointsHint": "Sum across {n} checked systems",
+      "tile.pointsNone": "No system to sum over",
+      "col.openDetail": "Open in DevOps web",
       "state.fetched": "Updated {time}",
       "state.stale": "served from cache",
       "state.error": "Load failed",
@@ -535,6 +570,52 @@ window.__ModuleLoader__.load({
       }, [source]);
       return value;
     }
+
+    // #region system filter
+    /** localStorage key of the checked-system list; absent means "every system". */
+    const SYSTEM_STORE = "dsh-devops-tasks:systems";
+
+    /** The persisted system ids, or `null` when the user never narrowed them. */
+    function loadSystemFilter() {
+      try {
+        const raw = window.localStorage.getItem(SYSTEM_STORE);
+        if (raw === null) return null;
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter((entry) => typeof entry === "string") : null;
+      } catch {
+        return null;
+      }
+    }
+
+    /** Persist the checked-system list; storage failures only lose the setting. */
+    function saveSystemFilter(ids) {
+      try {
+        window.localStorage.setItem(SYSTEM_STORE, JSON.stringify(ids));
+      } catch {
+        /* keep the session-local choice */
+      }
+    }
+
+    /**
+     * Every system present in the snapshot, as `{id, name}` sorted by name.
+     * The platform's listItem has no system condition, so "query only the
+     * checked systems" is this client-side filter over the fetched rows.
+     */
+    function systemOptionsOf(buckets) {
+      const seen = new Map();
+      for (const tab of Object.values(buckets ?? {})) {
+        for (const row of Array.isArray(tab?.items) ? tab.items : []) {
+          const id = typeof row.systemId === "string" && row.systemId !== "" ? row.systemId : "";
+          if (!seen.has(id)) {
+            const name = typeof row.system === "string" && row.system !== "" ? row.system : "(?)";
+            seen.set(id, name);
+          }
+        }
+      }
+      return Array.from(seen, ([id, name]) => ({ id, name }))
+        .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN"));
+    }
+    // #endregion
 
     // #region notes
     const NOTE_STORE = "dsh-devops-tasks:notes";
@@ -978,14 +1059,52 @@ window.__ModuleLoader__.load({
         h("span", { className: "dt-tileHint" }, props.hint === "" ? t("count.empty") : props.hint));
     }
 
-    /** The DevOps tab: counts, three buckets, search, table. */
+    /** A read-only tile: the task-point total over the rows now on screen. */
+    function PointsTile(props) {
+      const t = props.t;
+      return h("div", {
+        className: "dt-tile",
+        "data-static": "",
+        "data-tone": props.tone,
+      },
+        h("span", { className: "dt-tileTop" },
+          h("span", { className: "dt-tileLabel" }, t("tile.points")),
+          h("span", { className: "dt-tileValue" }, props.summary)),
+        h("span", { className: "dt-tileHint" }, props.hint));
+    }
+
+    /** Distinct values of one row field, sorted for a filter menu. */
+    function distinctOf(rows, pick) {
+      const seen = new Set();
+      for (const row of rows) {
+        const value = pick(row);
+        if (typeof value === "string" && value !== "") seen.add(value);
+      }
+      return Array.from(seen).sort((left, right) => left.localeCompare(right, "zh-Hans-CN"));
+    }
+
+    /** The DevOps tab: counts, task-point tile, filters, three buckets, table. */
     function DevopsView(props) {
       const t = props.t;
       const api = props.api;
       const [tab, setTab] = react.useState("todo");
       const [query, setQuery] = react.useState("");
-      const [copied, setCopied] = react.useState(null);
+      const [statusFilter, setStatusFilter] = react.useState("");
+      const [typeFilter, setTypeFilter] = react.useState("");
+      const [systemFilter, setSystemFilter] = react.useState(() => loadSystemFilter());
+      const [pickerOpen, setPickerOpen] = react.useState(false);
+      const picker = react.useRef(null);
       const snap = useSnapshot(api);
+
+      // Close the system menu on any click elsewhere.
+      react.useEffect(() => {
+        if (!pickerOpen) return undefined;
+        const onDown = (event) => {
+          if (picker.current !== null && !picker.current.contains(event.target)) setPickerOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+      }, [pickerOpen]);
 
       const data = snap.data;
       const tabs = [
@@ -996,25 +1115,52 @@ window.__ModuleLoader__.load({
       const counts = data !== null && data.counts !== null && data.counts !== undefined ? data.counts : {};
       const buckets = data !== null && data.tabs !== null && data.tabs !== undefined ? data.tabs : {};
       const bucket = buckets[tab] !== undefined && buckets[tab] !== null ? buckets[tab] : { items: [], total: 0 };
-      const needle = query.trim().toLowerCase();
-      const rows = (Array.isArray(bucket.items) ? bucket.items : []).filter((row) => (
-        needle === ""
-          ? true
-          : String(row.title).toLowerCase().includes(needle) || String(row.id).toLowerCase().includes(needle)
-      ));
+      const all = Array.isArray(bucket.items) ? bucket.items : [];
 
-      const onCopy = (id) => {
-        copyText(id).then((ok) => {
-          if (ok) {
-            setCopied(id);
-            setTimeout(() => setCopied((prev) => (prev === id ? null : prev)), 1600);
-          }
-        });
+      const systems = systemOptionsOf(buckets);
+      const checked = systemFilter === null ? null : new Set(systemFilter);
+      const systemsActive = checked !== null && checked.size < systems.length;
+      const needle = query.trim().toLowerCase();
+
+      const rows = all.filter((row) => {
+        if (checked !== null && !checked.has(typeof row.systemId === "string" ? row.systemId : "")) return false;
+        if (statusFilter !== "" && row.status !== statusFilter) return false;
+        if (typeFilter !== "" && row.type !== typeFilter) return false;
+        if (needle === "") return true;
+        return String(row.title).toLowerCase().includes(needle) || String(row.id).toLowerCase().includes(needle);
+      });
+
+      // The point total follows the same rows the table shows, so a narrowed
+      // system list immediately narrows the number too.
+      const pointSum = rows.reduce((total, row) => (
+        typeof row.points === "number" && Number.isFinite(row.points) ? total + row.points : total
+      ), 0);
+      const pointRows = rows.filter((row) => typeof row.points === "number" && Number.isFinite(row.points)).length;
+      const pointHint = systems.length === 0
+        ? t("tile.pointsNone")
+        : fill(t("tile.pointsHint"), { n: checked === null ? systems.length : checked.size });
+      const pointSummary = pointRows === 0 ? "-" : String(Math.round(pointSum * 100) / 100);
+
+      const statusOptions = distinctOf(all, (row) => row.status);
+      const typeOptions = distinctOf(all, (row) => row.type);
+
+      const toggleSystem = (id) => {
+        const base = checked === null ? new Set(systems.map((entry) => entry.id)) : new Set(checked);
+        if (base.has(id)) base.delete(id);
+        else base.add(id);
+        const next = systems.map((entry) => entry.id).filter((entry) => base.has(entry));
+        setSystemFilter(next);
+        saveSystemFilter(next);
+      };
+      const setAllSystems = (on) => {
+        const next = on ? systems.map((entry) => entry.id) : [];
+        setSystemFilter(next);
+        saveSystemFilter(next);
       };
 
       const columns = tab === "review"
         ? [
-          { key: "id", label: t("col.id"), render: (row) => idCell(row, t, onCopy, copied) },
+          { key: "id", label: t("col.id"), render: (row) => detailCell(row, t) },
           { key: "title", label: t("col.title"), render: (row) => row.title },
           { key: "sceneLabel", label: t("col.reviewKind"), render: (row) => chip(row.sceneLabel) },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
@@ -1023,7 +1169,7 @@ window.__ModuleLoader__.load({
           { key: "system", label: t("col.system"), render: (row) => systemCell(row) },
         ]
         : [
-          { key: "id", label: t("col.id"), render: (row) => idCell(row, t, onCopy, copied) },
+          { key: "id", label: t("col.id"), render: (row) => detailCell(row, t) },
           { key: "title", label: t("col.title"), render: (row) => row.title },
           { key: "type", label: t("col.type"), render: (row) => row.type === "" ? h("span", { className: "dt-muted" }, "-") : row.type },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
@@ -1044,14 +1190,50 @@ window.__ModuleLoader__.load({
             ? h("span", { className: "dt-badge", "data-state": "ok", title: fill(t("state.fetched"), { time: fetchedAt }) }, t("state.stale"))
             : h("span", { className: "dt-badge", "data-state": "ok" }, fill(t("state.fetched"), { time: fetchedAt }));
 
+      const select = (value, options, onPick, label) => h("select", {
+        className: "dt-select",
+        value,
+        "aria-label": label,
+        title: label,
+        onChange: (event) => onPick(event.target.value),
+      },
+        h("option", { value: "" }, label + "：" + t("filter.all")),
+        options.map((option) => h("option", { key: option, value: option }, option)));
+
+      const systemPicker = h("div", { className: "dt-picker", ref: picker },
+        h("button", {
+          type: "button",
+          className: "dt-btn",
+          "data-active": systemsActive ? "" : undefined,
+          title: t("filter.system"),
+          onClick: () => setPickerOpen((open) => !open),
+        }, t("filter.system") + "：" + fill(t("filter.systemCount"), { n: checked === null ? systems.length : checked.size, m: systems.length })),
+        pickerOpen
+          ? h("div", { className: "dt-pickerMenu", role: "group", "aria-label": t("filter.system") },
+            h("div", { className: "dt-pickerHead" },
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllSystems(true) }, t("filter.systemAll")),
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllSystems(false) }, t("filter.systemClear"))),
+            systems.length === 0
+              ? h("span", { className: "dt-muted", style: { fontSize: "12px" } }, t("filter.systemEmpty"))
+              : systems.map((entry) => h("label", { key: entry.id, className: "dt-pickerItem" },
+                h("input", {
+                  type: "checkbox",
+                  checked: checked === null || checked.has(entry.id),
+                  onChange: () => toggleSystem(entry.id),
+                }),
+                h("span", null, entry.name))))
+          : null);
+
       return h(react.Fragment, null,
         h("div", { className: "dt-tiles" },
           tabs.map((entry) => {
             const countsFor = counts[entry.id] !== undefined && counts[entry.id] !== null ? counts[entry.id] : null;
             const bucketFor = buckets[entry.id] !== undefined && buckets[entry.id] !== null ? buckets[entry.id] : null;
-            const total = countsFor !== null && typeof countsFor.total === "number" && countsFor.total > 0
-              ? countsFor.total
-              : (bucketFor !== null && typeof bucketFor.total === "number" ? bucketFor.total : 0);
+            // The created bucket merges several platform scenes, so its own row
+            // count can exceed the single-scene counter from getCountAutoZone.
+            const counted = countsFor !== null && typeof countsFor.total === "number" ? countsFor.total : 0;
+            const listed = bucketFor !== null && typeof bucketFor.total === "number" ? bucketFor.total : 0;
+            const total = Math.max(counted, listed);
             return h(CountTile, {
               key: entry.id,
               t,
@@ -1061,7 +1243,8 @@ window.__ModuleLoader__.load({
               active: tab === entry.id,
               onSelect: () => setTab(entry.id),
             });
-          })),
+          }),
+          h(PointsTile, { key: "points", t, summary: pointSummary, hint: pointHint })),
 
         warnings.length > 0 ? notice("warn", t("warn.title") + "：" + warnings.join("；")) : null,
         snap.error !== "" ? notice("error", snap.error) : null,
@@ -1092,10 +1275,18 @@ window.__ModuleLoader__.load({
           snap.loading ? h("span", { className: "dt-spinner", role: "status", "aria-label": t("common.loading") }) : null,
           h("button", { type: "button", className: "dt-btn", disabled: snap.loading, onClick: () => snap.refresh(true) }, t("common.refresh"))),
 
+        h("div", { className: "dt-toolbar" },
+          select(statusFilter, statusOptions, setStatusFilter, t("filter.status")),
+          select(typeFilter, typeOptions, setTypeFilter, t("filter.type")),
+          systemPicker),
+
         h("div", { className: "dt-body" },
           snap.loading && data === null ? null : h(react.Fragment, null,
             rows.length === 0
-              ? h("div", { className: "dt-empty" }, needle === "" ? t("empty." + tab) : t("empty.search"))
+              ? h("div", { className: "dt-empty" },
+                needle === "" && statusFilter === "" && typeFilter === "" && !systemsActive
+                  ? t("empty." + tab)
+                  : t("empty.search"))
               : h("div", { className: "dt-tableWrap" },
                 h("table", { className: "dt-table" },
                   h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key }, column.label)))),
@@ -1107,15 +1298,22 @@ window.__ModuleLoader__.load({
                 : fill(t("state.total"), { total: bucket.total })))));
     }
 
-    /** The id cell: a button that copies, confirming inline. */
-    function idCell(row, t, onCopy, copied) {
+    /**
+     * The id cell: a link into the DevOps web UI. Reminder rows carry no work
+     * item id, so they stay plain and unclickable.
+     */
+    function detailCell(row, t) {
       if (row.id === "") return h("span", { className: "dt-muted" }, "-");
-      return h("button", {
-        type: "button",
+      const systemId = typeof row.systemId === "string" ? row.systemId : "";
+      const href = "https://devsecops.midea.com/agile/demand/list?sysId="
+        + encodeURIComponent(systemId) + "&detailId=" + encodeURIComponent(row.id);
+      return h("a", {
         className: "dt-idBtn",
-        title: t("common.copy"),
-        onClick: () => onCopy(row.id),
-      }, copied === row.id ? t("common.copied") : row.id);
+        href,
+        target: "_blank",
+        rel: "noreferrer noopener",
+        title: t("col.openDetail"),
+      }, row.id);
     }
 
     /** The task-point cell: the tenant's optional float column. */

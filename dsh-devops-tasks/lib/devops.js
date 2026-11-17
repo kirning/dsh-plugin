@@ -15,27 +15,35 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-/** The three buckets the panel shows. */
+/**
+ * The three buckets the panel shows.
+ *
+ * A bucket is a list of queries because the platform's own "我创建的" counter
+ * only ever returns issues: work items created by the account (stories, tasks)
+ * are reachable only through `COMPLETED` filtered by `fc_creator`, which is why
+ * that query is merged into the same bucket.
+ */
 export const BUCKETS = {
-  todo: { status: 'NOT_STARTED', scenes: ['to_do_item_all'] },
+  todo: { queries: [{ status: 'NOT_STARTED', scene: 'to_do_item_all' }] },
   review: {
-    status: 'NOT_REVIEW',
-    scenes: [
-      'to_do_item_testPlan_review',
-      'to_do_item_testReport_review',
-      'to_do_milestone_approve_review',
-      'to_do_common_flow_review',
-      'to_do_approve_process_review',
-      'to_do_test_shared_case',
+    queries: [
+      { status: 'NOT_REVIEW', scene: 'to_do_item_testPlan_review' },
+      { status: 'NOT_REVIEW', scene: 'to_do_item_testReport_review' },
+      { status: 'NOT_REVIEW', scene: 'to_do_milestone_approve_review' },
+      { status: 'NOT_REVIEW', scene: 'to_do_common_flow_review' },
+      { status: 'NOT_REVIEW', scene: 'to_do_approve_process_review' },
+      { status: 'NOT_REVIEW', scene: 'to_do_test_shared_case' },
     ],
   },
   created: {
-    status: 'CREATED',
-    scenes: [
-      'to_do_demand_create',
-      'to_do_item_issue',
-      'to_do_approve_process_create',
-      'to_do_common_flow_create',
+    queries: [
+      { status: 'CREATED', scene: 'to_do_demand_create' },
+      { status: 'CREATED', scene: 'to_do_item_issue' },
+      { status: 'CREATED', scene: 'to_do_approve_process_create' },
+      { status: 'CREATED', scene: 'to_do_common_flow_create' },
+      // Everything the account created, whatever its status: `fc_creator` is the
+      // only filter the platform honours on a scene-wide list.
+      { status: 'COMPLETED', scene: 'to_do_item_all', byCreator: true },
     ],
   },
 }
@@ -79,6 +87,8 @@ const FIELD_CODES = [
   'fc_plan_end_time',
   'fc_expect_finish_time',
   'fc_responsible_person',
+  'fc_creator',
+  'fc_create_time',
   'systemTeamName',
   TASK_POINT_CODE,
 ]
@@ -143,11 +153,12 @@ function writeCache(value) {
 export class DevopsService {
   /**
    * @param {import('./mcp.js').McpHttpClient} client - MCP client for the DevOps server.
-   * @param {{systemId?: string, orgId?: string, view?: string, teamId?: string}} [identity] - header overrides.
+   * @param {{systemId?: string, orgId?: string, view?: string, teamId?: string, me?: string}} [identity] - header overrides.
    */
   constructor(client, identity = {}) {
     this.client = client
     this.identity = identity
+    this.me = typeof identity.me === 'string' && identity.me !== '' ? identity.me : null
     this.snapshotCache = readCache() ?? { at: 0, value: null }
     this.identityCache = { at: 0, value: null }
     this.inflight = null
@@ -232,7 +243,7 @@ export class DevopsService {
     for (const [bucket, spec] of Object.entries(BUCKETS)) {
       const bucketAt = Date.now()
       try {
-        tabs[bucket] = await this.bucket(bucket, spec, identity)
+        tabs[bucket] = await this.bucket(bucket, spec, identity, this.resolveMe(tabs))
       } catch (error) {
         warnings.push(`${bucketLabel(bucket)} 获取失败：${messageOf(error)}`)
         tabs[bucket] = { items: [], total: 0, truncated: false, partial: true }
@@ -259,22 +270,24 @@ export class DevopsService {
   }
 
   /**
-   * Fetch one bucket: every scene it is composed of, merged and sorted.
+   * Fetch one bucket: every query it is composed of, merged and sorted.
    * @param {string} bucket - bucket key.
-   * @param {{status: string, scenes: string[]}} spec - bucket definition.
+   * @param {{queries: {status: string, scene: string, byCreator?: boolean}[]}} spec - bucket definition.
    * @param {{orgId?: string, systemId?: string}} identity - request headers.
+   * @param {string} me - the account's `姓名(账号)`, needed by `byCreator` queries.
    */
-  async bucket(bucket, spec, identity) {
+  async bucket(bucket, spec, identity, me) {
     // Sequential on purpose: parallel platform calls make the MCP server drop
     // one answer, and a missing scene is invisible in the merged list.
     const seen = new Set()
     const items = []
     let pageCapHit = false
-    for (const scene of spec.scenes) {
-      const page = await this.listPage(scene, spec.status, identity)
+    for (const query of spec.queries) {
+      const creator = query.byCreator === true ? me : ''
+      const page = await this.listPage(query.scene, query.status, identity, creator)
       if (page.pageCapHit) pageCapHit = true
       for (const item of page.rows) {
-        const row = normalizeRow(item, scene)
+        const row = normalizeRow(item, query.scene)
         // Only id-bearing work items are deduplicated: the same item can come back
         // from two scenes. Reminders (mentions) have no id and two mentions may share
         // a title, so keying them by text would silently drop real rows.
@@ -296,13 +309,36 @@ export class DevopsService {
   }
 
   /**
-   * One `listItem` page for a scene.
+   * The account's own `姓名(账号)` string: `fc_creator` conditions require
+   * exactly that format and the platform exposes no "who am I" call. Every row
+   * of the todo bucket is assigned to the account, so its responsible person is
+   * the account — even when that row was created by someone else.
+   */
+  resolveMe(tabs) {
+    if (this.me !== null) return this.me
+    const configured = process.env.DSH_DEVOPS_ME ?? ''
+    if (configured !== '') {
+      this.me = configured
+      return configured
+    }
+    const rows = tabs?.todo?.items ?? []
+    const owner = rows.map(row => row.owner).find(name => typeof name === 'string' && name !== '')
+    if (owner !== undefined) this.me = owner
+    return this.me ?? ''
+  }
+
+  /**
    *
    * The platform caps a page at 50 rows whatever `pageSize` asks for; hitting
    * that cap means the scene holds more rows than the bucket can show, which is
    * reported as `partial` instead of silently pretending the list is complete.
+   * An empty `creator` means no condition; otherwise the page is filtered to
+   * work items that account created.
    */
-  async listPage(scene, status, identity) {
+  async listPage(scene, status, identity, creator = '') {
+    const conditionList = creator === ''
+      ? []
+      : [{ key: 'fc_creator', operator: 'in', value: creator }]
     const body = await this.openApi({
       path: '/agile-service/toDo/v1/listItem',
       method: 'POST',
@@ -313,7 +349,7 @@ export class DevopsService {
         category: 'to_do_item',
         current: 1,
         pageSize: PAGE_SIZE,
-        conditionList: [],
+        conditionList,
         orderByList: [],
         fieldCodeList: FIELD_CODES,
         queryByUserSetting: false,
@@ -469,6 +505,8 @@ export function normalizeRow(item, scene) {
     // "任务点数" is optional and only the story/task templates carry it.
     points: pointsOf(fields[TASK_POINT_CODE]),
     owner: value('fc_responsible_person') ?? '',
+    creator: value('fc_creator') ?? '',
+    created: value('fc_create_time'),
     start,
     end,
     system: value('systemTeamName') ?? '',
@@ -541,11 +579,19 @@ export function bucketLabel(bucket) {
  * Sort one bucket:
  *  - 待办 / 待审: plan end ascending, so the nearest deadline is first and rows
  *    without a date sink to the bottom;
- *  - 我创建的: plan end descending, so recently touched work comes first.
+ *  - 我创建的: creation (falling back to plan end) descending, so the newest
+ *    work comes first — most created items carry no plan end at all.
  */
 function compareRows(bucket, left, right) {
-  const leftEnd = typeof left.end === 'string' && left.end !== '' ? dayOnly(left.end) : ''
-  const rightEnd = typeof right.end === 'string' && right.end !== '' ? dayOnly(right.end) : ''
+  const dayOf = (row) => {
+    const candidates = bucket === 'created' ? [row.created, row.end] : [row.end]
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate !== '') return dayOnly(candidate)
+    }
+    return ''
+  }
+  const leftEnd = dayOf(left)
+  const rightEnd = dayOf(right)
   if (leftEnd !== rightEnd) {
     if (leftEnd === '') return 1
     if (rightEnd === '') return -1
