@@ -1,6 +1,6 @@
 {
   "name": "dsh-devops-tasks",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "description": "My workbench for the dsh web GUI: a sidebar panel with two tabs. The sessions tab lists every local session as a card (official StateDot status glyph, clamped title, inline note with turn count and token usage, workspace, pin, sidebar locate, and a three-dot menu with pin/rename/fork/copy session id/open in app/archive, workspace filter, pinned-first then last-used order). The DevOps tab loads the three \"about me\" buckets of the company DevOps platform (待办 / 待审 / 我创建的, the last one merging the account's own creations across every work-item type) with counts, a task-point total, status/type/system filters (system choice persisted), type/status/priority/task-point columns, due dates and a link into the DevOps web UI. Data comes from the devops-mcp-agile MCP server through a zero-dependency MCP Streamable-HTTP client in the host process, so the access token never reaches the browser; the endpoint is discovered from the profile's cordis patch files. Ships a sidebar panel plus a loopback-only host route. Zero runtime dependencies.",

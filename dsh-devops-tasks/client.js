@@ -112,6 +112,11 @@ window.__ModuleLoader__.load({
       ".dt-card:hover .dt-cardNote[data-empty],.dt-card:focus-within .dt-cardNote[data-empty]{opacity:.6}",
       ".dt-noteInput{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;padding:4px 6px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:6px;background:var(--dsw-specific-input-major);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:1.5;outline:none}",
       ".dt-cardMeta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      // Card anatomy: top (status + title + pin), middle (note + figures), bottom.
+      ".dt-cardFigs{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      ".dt-cardBottom{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:2px;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary)}",
+      ".dt-card[data-highlight]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}",
+      ".dt-pager{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--dsw-alias-label-tertiary)}",
       ".dt-ws-wrap{display:inline-flex;flex:none;align-items:center;gap:4px;min-width:0;max-width:52%}",
       ".dt-ws{min-width:0;overflow:hidden;text-overflow:ellipsis}",
       ".dt-metaItem{flex:none;font-variant-numeric:tabular-nums}",
@@ -120,8 +125,11 @@ window.__ModuleLoader__.load({
       "[data-dt-locate]{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px;border-radius:8px;animation:dt-pulse 1.8s ease-out}",
       "@keyframes dt-pulse{0%{background:var(--dsw-alias-state-business-primary);opacity:.5}100%{background:transparent;opacity:1}}",
       ".dt-cardBtns{display:flex;align-items:center;gap:2px;margin-left:auto}",
-      ".dt-iconBtn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:none;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:0;transition:opacity .12s,background .12s,color .12s}",
+      ".dt-iconBtn{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:none;border-radius:6px;background:none;color:var(--dsw-alias-label-tertiary);cursor:pointer;opacity:.55;transition:opacity .12s,background .12s,color .12s}",
       ".dt-card:hover .dt-iconBtn,.dt-card:focus-within .dt-iconBtn,.dt-iconBtn[data-on]{opacity:1}",
+      // The pin stays a hover action until the session is actually pinned.
+      ".dt-iconBtn.dt-pin:not([data-on]){opacity:0}",
+      ".dt-card:hover .dt-iconBtn.dt-pin,.dt-card:focus-within .dt-iconBtn.dt-pin{opacity:1}",
       ".dt-iconBtn:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}",
       ".dt-iconBtn[data-on]{color:var(--dsw-alias-state-business-primary)}",
       ".dt-menu{position:absolute;right:8px;top:34px;z-index:20;min-width:158px;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-layer-2);box-shadow:0 8px 24px rgba(0,0,0,.28);display:flex;flex-direction:column;cursor:default}",
@@ -170,10 +178,13 @@ window.__ModuleLoader__.load({
       "tab.todo": "待办",
       "tab.review": "待审",
       "tab.created": "我创建的",
+      "tab.all": "全部",
       "count.todo": "待办",
       "count.review": "待审",
       "count.created": "我创建的",
+      "count.all": "全部",
       "count.empty": "暂无",
+      "count.allHint": "待办、待审与我创建的合计",
       "col.id": "编号",
       "col.title": "标题",
       "col.type": "类型",
@@ -187,6 +198,8 @@ window.__ModuleLoader__.load({
       "empty.review": "没有等待你评审的事项。",
       "empty.created": "你最近没有创建的事项。",
       "empty.search": "没有匹配的条目。",
+      "empty.all": "没有关于你的事项。",
+      "hint.all": "待办、待审与我创建的合并在一起；点击编号在 DevOps 网页打开。",
       "hint.todo": "按截止日期从近到远排列；点击编号在 DevOps 网页打开。",
       "hint.review": "汇总各类等待你评审的事项。",
       "hint.created": "你创建的缺陷、需求、故事与任务（含已完结）。",
@@ -198,6 +211,13 @@ window.__ModuleLoader__.load({
       "filter.systemClear": "清空",
       "filter.systemCount": "已选 {n}/{m}",
       "filter.systemEmpty": "只显示勾选的系统，当前没有勾选。",
+      "filter.statusCount": "已选 {n}/{m}",
+      "filter.statusEmpty": "只显示勾选的状态，当前没有勾选。",
+      "pager.size": "每页条数",
+      "pager.sizeOption": "{n} 条/页",
+      "pager.prev": "上一页",
+      "pager.next": "下一页",
+      "pager.info": "第 {page}/{pages} 页 · 共 {n} 条",
       "tile.points": "任务点数",
       "tile.pointsHint": "勾选 {n} 个系统的合计",
       "tile.pointsNone": "没有可统计的系统",
@@ -264,6 +284,10 @@ window.__ModuleLoader__.load({
       "sess.actions": "更多操作",
       "sess.hint": "置顶会话排在最前，其余按最近使用时间排序。",
       "sess.count": "共 {n} 个会话",
+      "sess.highlight": "工作区凸显",
+      "sess.highlightCount": "已凸显 {n}",
+      "sess.highlightClear": "清除凸显",
+      "sess.highlightEmpty": "还没有工作区。",
       "sess.agoNow": "刚刚",
       "sess.agoMinutes": "{n} 分钟前",
       "sess.agoHours": "{n} 小时前",
@@ -294,10 +318,13 @@ window.__ModuleLoader__.load({
       "tab.todo": "To do",
       "tab.review": "To review",
       "tab.created": "Created",
+      "tab.all": "All",
       "count.todo": "To do",
       "count.review": "To review",
       "count.created": "Created",
+      "count.all": "All",
       "count.empty": "none",
+      "count.allHint": "To do, to review and created together",
       "col.id": "ID",
       "col.title": "Title",
       "col.type": "Type",
@@ -311,6 +338,8 @@ window.__ModuleLoader__.load({
       "empty.review": "Nothing waiting for your review.",
       "empty.created": "You have not created anything recently.",
       "empty.search": "No matching item.",
+      "empty.all": "Nothing about you right now.",
+      "hint.all": "To do, to review and created merged; click an id to open it in DevOps.",
       "hint.todo": "Sorted by due date, nearest first. Click an id to open it in DevOps.",
       "hint.review": "Every kind of item waiting for your review.",
       "hint.created": "Issues, demands, stories and tasks you created, finished ones included.",
@@ -322,6 +351,13 @@ window.__ModuleLoader__.load({
       "filter.systemClear": "Clear",
       "filter.systemCount": "{n}/{m} selected",
       "filter.systemEmpty": "Only checked systems are shown; none is checked.",
+      "filter.statusCount": "{n}/{m} selected",
+      "filter.statusEmpty": "Only checked statuses are shown; none is checked.",
+      "pager.size": "Rows per page",
+      "pager.sizeOption": "{n} per page",
+      "pager.prev": "Previous",
+      "pager.next": "Next",
+      "pager.info": "Page {page}/{pages} · {n} items",
       "tile.points": "Task points",
       "tile.pointsHint": "Sum across {n} checked systems",
       "tile.pointsNone": "No system to sum over",
@@ -387,6 +423,10 @@ window.__ModuleLoader__.load({
       "sess.actions": "More actions",
       "sess.hint": "Pinned sessions come first; the rest sort by last used.",
       "sess.count": "{n} sessions",
+      "sess.highlight": "Highlight workspaces",
+      "sess.highlightCount": "{n} highlighted",
+      "sess.highlightClear": "Clear highlight",
+      "sess.highlightEmpty": "No workspace yet.",
       "sess.agoNow": "just now",
       "sess.agoMinutes": "{n} min ago",
       "sess.agoHours": "{n} h ago",
@@ -995,7 +1035,7 @@ window.__ModuleLoader__.load({
         h("path", { d: "M8 1.6v2.2M8 12.2v2.2M1.6 8h2.2M12.2 8h2.2" }));
     }
 
-    /** Pin glyph: filled when pinned, outline while it is only a hover action. */
+    /** Pin glyph: a tilted pushpin, filled once the session is pinned. */
     function PinIcon(props) {
       return h("svg", {
         viewBox: "0 0 16 16",
@@ -1008,8 +1048,8 @@ window.__ModuleLoader__.load({
         strokeLinejoin: "round",
         "aria-hidden": "true",
       },
-        h("path", { d: "M8 1.9c1.9 0 3.3 1.5 3.3 3.3 0 2.4-3.3 5.4-3.3 5.4S4.7 7.6 4.7 5.2c0-1.8 1.4-3.3 3.3-3.3z" }),
-        h("path", { d: "M8 11.4v2.7" }));
+        h("path", { d: "M9.7 1.9l4.4 4.4-2.1.4-2.6 2.6-.5 2.4-4.6-4.6 2.4-.5 2.6-2.6z" }),
+        h("path", { d: "M6.9 9.1L2.4 13.6" }));
     }
 
     /** Kebab glyph for the card menu. */
@@ -1089,46 +1129,81 @@ window.__ModuleLoader__.load({
       const api = props.api;
       const [tab, setTab] = react.useState("todo");
       const [query, setQuery] = react.useState("");
-      const [statusFilter, setStatusFilter] = react.useState("");
+      const [statusFilter, setStatusFilter] = react.useState(null);
       const [typeFilter, setTypeFilter] = react.useState("");
       const [systemFilter, setSystemFilter] = react.useState(() => loadSystemFilter());
       const [pickerOpen, setPickerOpen] = react.useState(false);
+      const [statusOpen, setStatusOpen] = react.useState(false);
+      const [pageSize, setPageSize] = react.useState(20);
+      const [page, setPage] = react.useState(1);
       const picker = react.useRef(null);
+      const statusPicker = react.useRef(null);
       const snap = useSnapshot(api);
 
-      // Close the system menu on any click elsewhere.
+      // Close the system and status menus on any click elsewhere.
       react.useEffect(() => {
-        if (!pickerOpen) return undefined;
+        if (!pickerOpen && !statusOpen) return undefined;
         const onDown = (event) => {
-          if (picker.current !== null && !picker.current.contains(event.target)) setPickerOpen(false);
+          if (pickerOpen && picker.current !== null && !picker.current.contains(event.target)) setPickerOpen(false);
+          if (statusOpen && statusPicker.current !== null && !statusPicker.current.contains(event.target)) setStatusOpen(false);
         };
         document.addEventListener("mousedown", onDown);
         return () => document.removeEventListener("mousedown", onDown);
-      }, [pickerOpen]);
+      }, [pickerOpen, statusOpen]);
 
       const data = snap.data;
       const tabs = [
+        { id: "all", label: t("tab.all") },
         { id: "todo", label: t("tab.todo") },
         { id: "review", label: t("tab.review") },
         { id: "created", label: t("tab.created") },
       ];
       const counts = data !== null && data.counts !== null && data.counts !== undefined ? data.counts : {};
       const buckets = data !== null && data.tabs !== null && data.tabs !== undefined ? data.tabs : {};
-      const bucket = buckets[tab] !== undefined && buckets[tab] !== null ? buckets[tab] : { items: [], total: 0 };
+      const bucketOf = (id) => (buckets[id] !== undefined && buckets[id] !== null ? buckets[id] : { items: [], total: 0 });
+      // The "all" tab merges the three buckets, keeping the first occurrence of
+      // every work item and every distinct reminder.
+      const merged = [];
+      if (tab === "all") {
+        const seenKeys = new Set();
+        for (const id of ["todo", "review", "created"]) {
+          for (const row of bucketOf(id).items) {
+            const key = row.id !== "" ? "id:" + row.id : "text:" + row.title + "|" + row.system;
+            if (seenKeys.has(key)) continue;
+            seenKeys.add(key);
+            merged.push(row);
+          }
+        }
+      }
+      const bucket = tab === "all"
+        ? { items: merged, total: merged.length, truncated: false }
+        : bucketOf(tab);
       const all = Array.isArray(bucket.items) ? bucket.items : [];
 
       const systems = systemOptionsOf(buckets);
       const checked = systemFilter === null ? null : new Set(systemFilter);
       const systemsActive = checked !== null && checked.size < systems.length;
       const needle = query.trim().toLowerCase();
+      const statusOptions = distinctOf(all, (row) => row.status);
+      const statusChecked = statusFilter === null ? null : new Set(statusFilter);
+      const statusActive = statusChecked !== null && statusChecked.size < statusOptions.length;
 
       const rows = all.filter((row) => {
         if (checked !== null && !checked.has(typeof row.systemId === "string" ? row.systemId : "")) return false;
-        if (statusFilter !== "" && row.status !== statusFilter) return false;
+        if (statusChecked !== null && !statusChecked.has(row.status)) return false;
         if (typeFilter !== "" && row.type !== typeFilter) return false;
         if (needle === "") return true;
         return String(row.title).toLowerCase().includes(needle) || String(row.id).toLowerCase().includes(needle);
       });
+
+      // Any change to the filters starts again from the first page.
+      react.useEffect(() => {
+        setPage(1);
+      }, [tab, needle, statusFilter, typeFilter, systemFilter, pageSize]);
+
+      const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+      const safePage = Math.min(page, pageCount);
+      const pageRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
       // The point total follows the same rows the table shows, so a narrowed
       // system list immediately narrows the number too.
@@ -1141,8 +1216,15 @@ window.__ModuleLoader__.load({
         : fill(t("tile.pointsHint"), { n: checked === null ? systems.length : checked.size });
       const pointSummary = pointRows === 0 ? "-" : String(Math.round(pointSum * 100) / 100);
 
-      const statusOptions = distinctOf(all, (row) => row.status);
       const typeOptions = distinctOf(all, (row) => row.type);
+
+      const toggleStatus = (value) => {
+        const base = statusChecked === null ? new Set(statusOptions) : new Set(statusChecked);
+        if (base.has(value)) base.delete(value);
+        else base.add(value);
+        setStatusFilter(statusOptions.filter((entry) => base.has(entry)));
+      };
+      const setAllStatus = (on) => setStatusFilter(on ? statusOptions : []);
 
       const toggleSystem = (id) => {
         const base = checked === null ? new Set(systems.map((entry) => entry.id)) : new Set(checked);
@@ -1224,22 +1306,45 @@ window.__ModuleLoader__.load({
                 h("span", null, entry.name))))
           : null);
 
+      const statusPickerNode = h("div", { className: "dt-picker", ref: statusPicker },
+        h("button", {
+          type: "button",
+          className: "dt-btn",
+          "data-active": statusActive ? "" : undefined,
+          title: t("filter.status"),
+          onClick: () => setStatusOpen((open) => !open),
+        }, t("filter.status") + "：" + fill(t("filter.statusCount"), { n: statusChecked === null ? statusOptions.length : statusChecked.size, m: statusOptions.length })),
+        statusOpen
+          ? h("div", { className: "dt-pickerMenu", role: "group", "aria-label": t("filter.status") },
+            h("div", { className: "dt-pickerHead" },
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllStatus(true) }, t("filter.systemAll")),
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllStatus(false) }, t("filter.systemClear"))),
+            statusOptions.length === 0
+              ? h("span", { className: "dt-muted", style: { fontSize: "12px" } }, t("filter.statusEmpty"))
+              : statusOptions.map((option) => h("label", { key: option, className: "dt-pickerItem" },
+                h("input", {
+                  type: "checkbox",
+                  checked: statusChecked === null || statusChecked.has(option),
+                  onChange: () => toggleStatus(option),
+                }),
+                h("span", null, option))))
+          : null);
+
       return h(react.Fragment, null,
         h("div", { className: "dt-tiles" },
           tabs.map((entry) => {
             const countsFor = counts[entry.id] !== undefined && counts[entry.id] !== null ? counts[entry.id] : null;
-            const bucketFor = buckets[entry.id] !== undefined && buckets[entry.id] !== null ? buckets[entry.id] : null;
             // The created bucket merges several platform scenes, so its own row
             // count can exceed the single-scene counter from getCountAutoZone.
             const counted = countsFor !== null && typeof countsFor.total === "number" ? countsFor.total : 0;
-            const listed = bucketFor !== null && typeof bucketFor.total === "number" ? bucketFor.total : 0;
-            const total = Math.max(counted, listed);
+            const listed = entry.id === "all" ? merged.length : bucketOf(entry.id).total;
+            const total = Math.max(counted, typeof listed === "number" ? listed : 0);
             return h(CountTile, {
               key: entry.id,
               t,
               label: t("count." + entry.id),
               total,
-              hint: breakdown(t, countsFor),
+              hint: entry.id === "all" ? t("count.allHint") : breakdown(t, countsFor),
               active: tab === entry.id,
               onSelect: () => setTab(entry.id),
             });
@@ -1276,7 +1381,7 @@ window.__ModuleLoader__.load({
           h("button", { type: "button", className: "dt-btn", disabled: snap.loading, onClick: () => snap.refresh(true) }, t("common.refresh"))),
 
         h("div", { className: "dt-toolbar" },
-          select(statusFilter, statusOptions, setStatusFilter, t("filter.status")),
+          statusPickerNode,
           select(typeFilter, typeOptions, setTypeFilter, t("filter.type")),
           systemPicker),
 
@@ -1284,18 +1389,31 @@ window.__ModuleLoader__.load({
           snap.loading && data === null ? null : h(react.Fragment, null,
             rows.length === 0
               ? h("div", { className: "dt-empty" },
-                needle === "" && statusFilter === "" && typeFilter === "" && !systemsActive
+                needle === "" && statusFilter === null && typeFilter === "" && !systemsActive
                   ? t("empty." + tab)
                   : t("empty.search"))
               : h("div", { className: "dt-tableWrap" },
                 h("table", { className: "dt-table" },
                   h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key }, column.label)))),
-                  h("tbody", null, rows.map((row) => h("tr", { key: row.id === "" ? row.title + row.scene : row.id },
+                  h("tbody", null, pageRows.map((row) => h("tr", { key: row.id === "" ? row.title + row.scene : row.id },
                     columns.map((column) => h("td", { key: column.key }, column.render(row)))))))),
-            h("div", { className: "dt-footer" },
-              bucket.truncated === true
-                ? fill(t("state.truncated"), { total: bucket.total, shown: rows.length })
-                : fill(t("state.total"), { total: bucket.total })))));
+            h("div", { className: "dt-footer", style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+              h("span", null,
+                bucket.truncated === true
+                  ? fill(t("state.truncated"), { total: bucket.total, shown: rows.length })
+                  : fill(t("state.total"), { total: bucket.total })),
+              h("span", { style: { flex: "1 1 auto" } }),
+              h("div", { className: "dt-pager" },
+                h("select", {
+                  className: "dt-select",
+                  value: String(pageSize),
+                  "aria-label": t("pager.size"),
+                  title: t("pager.size"),
+                  onChange: (event) => setPageSize(Number(event.target.value)),
+                }, [20, 50, 100].map((size) => h("option", { key: size, value: String(size) }, fill(t("pager.sizeOption"), { n: size })))),
+                h("button", { type: "button", className: "dt-btn", disabled: safePage <= 1, onClick: () => setPage(safePage - 1) }, t("pager.prev")),
+                h("span", null, fill(t("pager.info"), { page: safePage, pages: pageCount, n: rows.length })),
+                h("button", { type: "button", className: "dt-btn", disabled: safePage >= pageCount, onClick: () => setPage(safePage + 1) }, t("pager.next")))))));
     }
 
     /**
@@ -1323,13 +1441,15 @@ window.__ModuleLoader__.load({
       return h("span", { className: "dt-num" }, String(value));
     }
 
-    /** The due cell: date plus an overdue accent. */
+    /** The due cell: date plus an overdue accent, unless the item is done. */
     function endCell(row) {
       const day = dayOf(row.end);
       if (day === "") return h("span", { className: "dt-muted" }, "-");
+      // Finished items keep a plain date: an overdue accent would be noise.
+      const finished = /完成|关闭|取消|终止|已解决/.test(String(row.status));
       return h("span", {
         className: "dt-mono",
-        style: isOverdue(row.end) ? { color: "var(--dsw-alias-state-error-primary)" } : undefined,
+        style: !finished && isOverdue(row.end) ? { color: "var(--dsw-alias-state-error-primary)" } : undefined,
         title: row.end,
       }, day);
     }
@@ -1443,25 +1563,26 @@ window.__ModuleLoader__.load({
       const title = row.title === "" ? t("sess.untitled") : row.title;
       const used = agoOf(t, row.updatedAt);
       const tokens = row.tokens === null ? "" : tokenText(row.tokens);
-      const meta = [
-        h("span", { key: "ws-wrap", className: "dt-ws-wrap" },
-          h(FolderIcon),
-          h("span", { className: "dt-ws", title: row.cwd === "" ? row.workspace : row.cwd }, row.workspace === "" ? t("sess.ungrouped") : row.workspace)),
-      ];
+      // Prefer the official pin glyph; fall back to the local drawing when the
+      // shell does not export it.
+      const officialPin = primitives !== null && primitives !== undefined && typeof primitives.IconPinFillRegular === "function"
+        ? primitives.IconPinFillRegular
+        : null;
+      // Figures belong to the middle band of the card, next to the note.
+      const figs = [];
       if (row.turns !== null) {
-        meta.push(h("span", { key: "sep-turns", className: "dt-metaSep" }, "·"));
-        meta.push(h("span", { key: "turns", className: "dt-metaItem" }, fill(t("sess.turns"), { n: row.turns })));
+        figs.push(h("span", { key: "turns", className: "dt-metaItem" }, fill(t("sess.turns"), { n: row.turns })));
       }
       if (tokens !== "") {
-        meta.push(h("span", { key: "sep-tokens", className: "dt-metaSep" }, "·"));
-        meta.push(h("span", { key: "tokens", className: "dt-metaItem", title: String(row.tokens) }, fill(t("sess.tokens"), { n: tokens })));
+        if (figs.length > 0) figs.push(h("span", { key: "sep-tokens", className: "dt-metaSep" }, "·"));
+        figs.push(h("span", { key: "tokens", className: "dt-metaItem", title: String(row.tokens) }, fill(t("sess.tokens"), { n: tokens })));
       }
-      if (used !== "") meta.push(h("span", { key: "used", className: "dt-metaTime" }, used));
       return h("article", {
         className: "dt-card",
         tabIndex: 0,
         role: "button",
         "data-current": row.current ? "" : undefined,
+        "data-highlight": props.highlighted ? "" : undefined,
         "data-pinned": row.pinned ? "" : undefined,
         "data-session-id": row.id,
         "aria-label": title + " · " + row.status.label + (row.workspace === "" ? "" : " · " + row.workspace),
@@ -1483,16 +1604,6 @@ window.__ModuleLoader__.load({
           h("span", { className: "dt-cardBtns" },
             h("button", {
               type: "button",
-              className: "dt-iconBtn dt-locate",
-              title: t("sess.locateHint"),
-              "aria-label": t("sess.locate"),
-              onClick: (event) => {
-                event.stopPropagation();
-                props.onLocate(row);
-              },
-            }, h(LocateIcon)),
-            h("button", {
-              type: "button",
               className: "dt-iconBtn dt-pin",
               "data-on": row.pinned ? "" : undefined,
               "aria-label": row.pinned ? t("sess.unpin") : t("sess.pin"),
@@ -1501,7 +1612,25 @@ window.__ModuleLoader__.load({
                 event.stopPropagation();
                 props.onTogglePin(row);
               },
-            }, h(PinIcon, { filled: row.pinned })),
+            }, officialPin === null ? h(PinIcon, { filled: row.pinned }) : h(officialPin, { size: 14 })))),
+        h(NoteBox, { t, note: row.note, onSave: (text) => props.onSaveNote(row, text) }),
+        figs.length === 0 ? null : h("div", { className: "dt-cardFigs" }, figs),
+        h("div", { className: "dt-cardBottom" },
+          h("span", { key: "ws-wrap", className: "dt-ws-wrap" },
+            h(FolderIcon),
+            h("span", { className: "dt-ws", title: row.cwd === "" ? row.workspace : row.cwd }, row.workspace === "" ? t("sess.ungrouped") : row.workspace)),
+          h("span", { className: "dt-metaTime" }, used),
+          h("span", { className: "dt-cardBtns" },
+            h("button", {
+              type: "button",
+              className: "dt-iconBtn dt-locate",
+              title: t("sess.locateHint"),
+              "aria-label": t("sess.locate"),
+              onClick: (event) => {
+                event.stopPropagation();
+                props.onLocate(row);
+              },
+            }, h(LocateIcon)),
             h("button", {
               type: "button",
               className: "dt-iconBtn dt-more",
@@ -1514,8 +1643,6 @@ window.__ModuleLoader__.load({
                 props.onToggleMenu(row);
               },
             }, h(KebabIcon)))),
-        h(NoteBox, { t, note: row.note, onSave: (text) => props.onSaveNote(row, text) }),
-        h("div", { className: "dt-cardMeta" }, meta),
         props.menuOpen ? h(SessionMenu, props.menu) : null);
     }
 
@@ -1583,6 +1710,10 @@ window.__ModuleLoader__.load({
       const [renaming, setRenaming] = react.useState(null);
       const [archiving, setArchiving] = react.useState(null);
       const [toast, setToast] = react.useState(null);
+      // Workspaces chosen in the highlight picker get a border on their cards.
+      const [highlight, setHighlight] = react.useState([]);
+      const [hlOpen, setHlOpen] = react.useState(false);
+      const hlRef = react.useRef(null);
       // Note edits live in localStorage, so a counter is enough to redraw them.
       const [, bumpNotes] = react.useState(0);
       const requested = react.useRef(new Set());
@@ -1594,6 +1725,10 @@ window.__ModuleLoader__.load({
 
       const rows = sessionRows(t, list, statuses, workspaces);
       const workspaceItems = workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.items) ? workspaces.items : [];
+      const highlightSet = new Set(highlight);
+      const toggleHighlight = (id) => {
+        setHighlight((prev) => (prev.includes(id) ? prev.filter((entry) => entry !== id) : prev.concat(id)));
+      };
 
       // Close the card menu on any outside click or Escape.
       react.useEffect(() => {
@@ -1609,6 +1744,16 @@ window.__ModuleLoader__.load({
           document.removeEventListener("keydown", onKey);
         };
       }, [menuFor]);
+
+      // Close the highlight picker on any click elsewhere.
+      react.useEffect(() => {
+        if (!hlOpen) return undefined;
+        const onDown = (event) => {
+          if (hlRef.current !== null && !hlRef.current.contains(event.target)) setHlOpen(false);
+        };
+        document.addEventListener("mousedown", onDown);
+        return () => document.removeEventListener("mousedown", onDown);
+      }, [hlOpen]);
 
       const fail = (prefix) => (error) => notify(fill(prefix, { message: reasonOf(error) }));
       const successfully = (action, message) => {
@@ -1716,6 +1861,28 @@ window.__ModuleLoader__.load({
             workspaceItems.map((workspace) => h("option", { key: workspace.workspaceId, value: workspace.workspaceId },
               workspace.title === "" ? workspace.path : workspace.title)),
             h("option", { value: "ungrouped" }, t("sess.ungrouped"))),
+          h("div", { className: "dt-picker", ref: hlRef },
+            h("button", {
+              type: "button",
+              className: "dt-btn",
+              "data-active": highlight.length > 0 ? "" : undefined,
+              title: t("sess.highlight"),
+              onClick: () => setHlOpen((open) => !open),
+            }, highlight.length === 0 ? t("sess.highlight") : fill(t("sess.highlightCount"), { n: highlight.length })),
+            hlOpen
+              ? h("div", { className: "dt-pickerMenu", role: "group", "aria-label": t("sess.highlight") },
+                h("div", { className: "dt-pickerHead" },
+                  h("button", { type: "button", className: "dt-btn", onClick: () => setHighlight([]) }, t("sess.highlightClear"))),
+                workspaceItems.length === 0
+                  ? h("span", { className: "dt-muted", style: { fontSize: "12px" } }, t("sess.highlightEmpty"))
+                  : workspaceItems.map((workspace) => h("label", { key: workspace.workspaceId, className: "dt-pickerItem" },
+                    h("input", {
+                      type: "checkbox",
+                      checked: highlightSet.has(workspace.workspaceId),
+                      onChange: () => toggleHighlight(workspace.workspaceId),
+                    }),
+                    h("span", null, workspace.title === "" ? workspace.path : workspace.title))))
+              : null),
           h("input", {
             className: "dt-input",
             type: "search",
@@ -1735,6 +1902,7 @@ window.__ModuleLoader__.load({
                 key: row.id,
                 t,
                 row,
+                highlighted: row.workspaceId !== "" && highlightSet.has(row.workspaceId),
                 menuOpen: menuFor === row.id,
                 onOpen: open,
                 onTogglePin: togglePin,
