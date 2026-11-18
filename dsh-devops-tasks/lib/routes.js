@@ -219,6 +219,29 @@ export function createRoutes(deps = {}) {
       return
     }
 
+    if (route === '/item-detail' || route === '/item-log') {
+      const id = (url.searchParams.get('id') ?? '').trim()
+      if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) {
+        writeJson(response, 400, { error: 'bad item id' })
+        return
+      }
+      try {
+        const { service } = currentService()
+        if (route === '/item-detail') {
+          const detail = await service.itemDetail(id, (url.searchParams.get('systemId') ?? '').trim())
+          writeJson(response, 200, detail)
+          return
+        }
+        const page = Math.max(1, Number(url.searchParams.get('page') ?? '1') || 1)
+        const size = Math.min(100, Math.max(1, Number(url.searchParams.get('size') ?? '50') || 50))
+        const log = await service.itemLog(id, page, size)
+        writeJson(response, 200, { ...log, page, size })
+      } catch (error) {
+        writeJson(response, 502, { error: messageOf(error) })
+      }
+      return
+    }
+
     writeJson(response, 404, { error: 'not found' })
   }
 

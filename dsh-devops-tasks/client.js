@@ -73,6 +73,43 @@ window.__ModuleLoader__.load({
       ".dt-sortBtn[data-active]{color:var(--dsw-alias-state-business-primary)}",
       ".dt-sortMark{font-size:10px;line-height:1;opacity:.45}",
       ".dt-sortBtn[data-active] .dt-sortMark{opacity:1}",
+      // A draggable right edge per header cell, and the title button that opens
+      // the detail dialog.
+      ".dt-table th{padding-right:16px}",
+      ".dt-colResize{position:absolute;top:0;right:0;z-index:2;width:7px;height:100%;cursor:col-resize;user-select:none}",
+      ".dt-colResize:hover,.dt-colResize:active{background:var(--dsw-alias-state-business-primary);opacity:.5}",
+      ".dt-titleBtn{display:block;width:100%;background:none;border:none;margin:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}",
+      ".dt-titleBtn:hover{color:var(--dsw-alias-state-business-primary);text-decoration:underline}",
+      ".dt-person{display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}",
+      // The detail dialog: two tabs over one scrollable body.
+      ".dt-modalMask{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.42)}",
+      ".dt-modal{display:flex;flex-direction:column;width:min(880px,94vw);max-height:min(84vh,760px);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);box-shadow:0 20px 60px rgba(0,0,0,.38);overflow:hidden}",
+      ".dt-modalHead{display:flex;flex:none;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--dsw-alias-border-l1);min-width:0}",
+      ".dt-modalId{flex:none}", ".dt-modalTitle{flex:0 1 auto;margin:0;font-size:14px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+      ".dt-modalHead .dt-idBtn,.dt-modalHead a.dt-idBtn{flex:none}",
+      ".dt-modalTabs{display:flex;flex:none;gap:2px;padding:8px 16px 0;border-bottom:1px solid var(--dsw-alias-border-l1)}",
+      ".dt-modalTab{background:none;border:none;border-bottom:2px solid transparent;padding:6px 12px;font-family:inherit;font-size:12.5px;color:var(--dsw-alias-label-secondary);cursor:pointer}",
+      ".dt-modalTab:hover{color:var(--dsw-alias-label-primary)}",
+      ".dt-modalTab[data-active]{color:var(--dsw-alias-state-business-primary);border-bottom-color:var(--dsw-alias-state-business-primary);font-weight:600}",
+      ".dt-modalBody{flex:1 1 auto;min-height:0;overflow-y:auto;padding:12px 16px 16px;display:flex;flex-direction:column;gap:12px}",
+      ".dt-group{display:flex;flex-direction:column;gap:6px}",
+      ".dt-groupTitle{font-size:12px;font-weight:700;color:var(--dsw-alias-label-secondary)}",
+      ".dt-groupRow{display:flex;align-items:flex-start;gap:10px;font-size:12.5px;line-height:1.55;padding:3px 0;border-bottom:1px dashed var(--dsw-alias-separator-primary)}",
+      ".dt-groupRow:last-child{border-bottom:none}",
+      ".dt-groupName{flex:0 0 132px;color:var(--dsw-alias-label-tertiary)}",
+      ".dt-groupValue{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}",
+      ".dt-logRow{display:flex;align-items:flex-start;gap:10px;padding:6px 0}",
+      ".dt-logAvatar{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:var(--dsw-alias-bg-layer-2);border:1px solid var(--dsw-alias-border-l2);font-size:12px;color:var(--dsw-alias-label-secondary)}",
+      ".dt-logBody{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}",
+      ".dt-logHead{display:flex;align-items:baseline;gap:8px;min-width:0}",
+      ".dt-logUser{font-size:12.5px;font-weight:600}",
+      ".dt-logTime{font-size:11.5px;color:var(--dsw-alias-label-tertiary);font-variant-numeric:tabular-nums}",
+      ".dt-logItem{font-size:12.5px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
+      ".dt-logValues{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:11.5px;color:var(--dsw-alias-label-tertiary)}",
+      ".dt-logBefore{text-decoration:line-through;opacity:.7;overflow-wrap:anywhere}",
+      ".dt-logArrow{opacity:.6}",
+      ".dt-logAfter{color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}",
+      ".dt-logTag{display:inline-block;font-size:10.5px;color:var(--dsw-alias-label-tertiary);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:0 6px;line-height:1.6;width:max-content}",
       ".dt-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}",
       ".dt-muted{color:var(--dsw-alias-label-tertiary)}",
       ".dt-num{font-variant-numeric:tabular-nums}",
@@ -203,6 +240,12 @@ window.__ModuleLoader__.load({
       "col.end": "截止",
       "col.system": "所属系统",
       "col.reviewKind": "评审类型",
+      "col.creator": "创建人",
+      "col.devOwner": "开发负责人",
+      "col.testOwner": "测试负责人",
+      "col.owner": "责任人",
+      "col.resize": "拖动调整列宽，双击恢复默认",
+      "col.openModal": "查看详细信息与活动日志",
       "empty.todo": "没有待办事项。",
       "empty.review": "没有等待你评审的事项。",
       "empty.created": "你最近没有创建的事项。",
@@ -237,6 +280,24 @@ window.__ModuleLoader__.load({
       "sort.pointsAsc": "按任务点数从少到多排序",
       "sort.pointsClear": "已取消排序，点击恢复从多到少",
       "col.openDetail": "在 DevOps 网页打开",
+      "filter.reset": "重置筛选",
+      "modal.detail": "详细信息",
+      "modal.log": "活动日志",
+      "modal.group.basic": "基本信息",
+      "modal.group.people": "人员信息",
+      "modal.group.plan": "优先级与计划",
+      "modal.group.desc": "描述",
+      "modal.openWeb": "在 DevOps 网页打开",
+      "modal.close": "关闭",
+      "modal.loading": "正在读取…",
+      "modal.error": "读取失败：{message}",
+      "modal.empty": "没有可显示的字段。",
+      "modal.logEmpty": "这条事项还没有活动记录。",
+      "modal.more": "加载更多",
+      "modal.moreLoading": "正在加载…",
+      "modal.before": "原值",
+      "modal.after": "新值",
+      "modal.autoFlow": "状态流转自动触发",
       "state.fetched": "更新于 {time}",
       "state.stale": "数据来自缓存",
       "state.error": "取数失败",
@@ -358,6 +419,12 @@ window.__ModuleLoader__.load({
       "col.end": "Due",
       "col.system": "System",
       "col.reviewKind": "Review kind",
+      "col.creator": "Creator",
+      "col.devOwner": "Dev owner",
+      "col.testOwner": "Test owner",
+      "col.owner": "Owner",
+      "col.resize": "Drag to resize this column; double-click to reset",
+      "col.openModal": "Open details and activity log",
       "empty.todo": "Nothing on your plate.",
       "empty.review": "Nothing waiting for your review.",
       "empty.created": "You have not created anything recently.",
@@ -392,6 +459,24 @@ window.__ModuleLoader__.load({
       "sort.pointsAsc": "Sort by task points, fewest first",
       "sort.pointsClear": "Sorting cleared; click to use most first",
       "col.openDetail": "Open in DevOps web",
+      "filter.reset": "Reset filters",
+      "modal.detail": "Details",
+      "modal.log": "Activity log",
+      "modal.group.basic": "Basics",
+      "modal.group.people": "People",
+      "modal.group.plan": "Priority and schedule",
+      "modal.group.desc": "Description",
+      "modal.openWeb": "Open in DevOps web",
+      "modal.close": "Close",
+      "modal.loading": "Loading…",
+      "modal.error": "Load failed: {message}",
+      "modal.empty": "No field to show.",
+      "modal.logEmpty": "This item has no activity yet.",
+      "modal.more": "Load more",
+      "modal.moreLoading": "Loading…",
+      "modal.before": "before",
+      "modal.after": "after",
+      "modal.autoFlow": "automatic status change",
       "state.fetched": "Updated {time}",
       "state.stale": "served from cache",
       "state.error": "Load failed",
@@ -513,6 +598,19 @@ window.__ModuleLoader__.load({
 
       snapshot(force) {
         return this.request("/snapshot" + (force === true ? "?force=1" : ""));
+      }
+
+      /** One work item's grouped detail; `systemId` resolves its custom fields. */
+      itemDetail(id, systemId) {
+        const query = "?id=" + encodeURIComponent(id)
+          + (typeof systemId === "string" && systemId !== "" ? "&systemId=" + encodeURIComponent(systemId) : "");
+        return this.request("/item-detail" + query);
+      }
+
+      /** One page of an item's activity log. */
+      itemLog(id, page, size) {
+        return this.request("/item-log?id=" + encodeURIComponent(id)
+          + "&page=" + String(page) + "&size=" + String(size));
       }
 
       health() {
@@ -693,6 +791,83 @@ window.__ModuleLoader__.load({
       }
       return Array.from(seen, ([id, name]) => ({ id, name }))
         .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN"));
+    }
+    // #endregion
+
+    // #region filter persistence
+    /** localStorage key of the remembered filter set (tab, status, type). */
+    const FILTER_STORE = "dsh-devops-tasks:filters";
+
+    /** The narrowest a dragged column may become. */
+    const MIN_COL_WIDTH = 64;
+
+    /** One persisted checkbox list, or `null` when the visit had none. */
+    function listOf(value) {
+      if (value === null || value === undefined) return null;
+      if (!Array.isArray(value)) return null;
+      return value.filter((entry) => typeof entry === "string");
+    }
+
+    /**
+     * The filter set the previous visit left behind. A missing list means
+     * "everything is checked", exactly like the live `null` state.
+     */
+    function loadFilters() {
+      const empty = { tab: null, status: null, type: null };
+      try {
+        const raw = window.localStorage.getItem(FILTER_STORE);
+        if (raw === null) return empty;
+        const parsed = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== "object") return empty;
+        const tab = parsed.tab === "all" || parsed.tab === "todo" || parsed.tab === "review" || parsed.tab === "created"
+          ? parsed.tab
+          : null;
+        return { tab, status: listOf(parsed.status), type: listOf(parsed.type) };
+      } catch {
+        return empty;
+      }
+    }
+
+    /** Remember the filter set so the next visit restores it. */
+    function saveFilters(next) {
+      try {
+        window.localStorage.setItem(FILTER_STORE, JSON.stringify({
+          tab: next.tab ?? null,
+          status: next.status ?? null,
+          type: next.type ?? null,
+        }));
+      } catch {
+        /* keep the session-local choice */
+      }
+    }
+
+    /** localStorage key of the remembered column widths. */
+    const COLWIDTH_STORE = "dsh-devops-tasks:colwidth";
+
+    /** The saved width per column key; an empty map means "auto layout". */
+    function loadWidths() {
+      try {
+        const raw = window.localStorage.getItem(COLWIDTH_STORE);
+        if (raw === null) return {};
+        const parsed = JSON.parse(raw);
+        if (parsed === null || typeof parsed !== "object") return {};
+        const map = {};
+        for (const [key, value] of Object.entries(parsed)) {
+          if (typeof value === "number" && Number.isFinite(value) && value >= MIN_COL_WIDTH) map[key] = Math.round(value);
+        }
+        return map;
+      } catch {
+        return {};
+      }
+    }
+
+    /** Persist one column-width change; a blocked storage only loses the width. */
+    function saveWidths(map) {
+      try {
+        window.localStorage.setItem(COLWIDTH_STORE, JSON.stringify(map));
+      } catch {
+        /* keep the session-local widths */
+      }
     }
     // #endregion
 
@@ -1183,10 +1358,12 @@ window.__ModuleLoader__.load({
     function DevopsView(props) {
       const t = props.t;
       const api = props.api;
-      const [tab, setTab] = react.useState("todo");
+      const [tab, setTab] = react.useState(() => loadFilters().tab ?? "todo");
       const [query, setQuery] = react.useState("");
-      const [statusFilter, setStatusFilter] = react.useState(null);
-      const [typeFilter, setTypeFilter] = react.useState(null);
+      // The checkbox filters are restored from the previous visit: `null`
+      // still means "everything", an array is the exact checked set.
+      const [statusFilter, setStatusFilter] = react.useState(() => loadFilters().status);
+      const [typeFilter, setTypeFilter] = react.useState(() => loadFilters().type);
       const [systemFilter, setSystemFilter] = react.useState(() => loadSystemFilter());
       const [pickerOpen, setPickerOpen] = react.useState(false);
       const [statusOpen, setStatusOpen] = react.useState(false);
@@ -1196,6 +1373,11 @@ window.__ModuleLoader__.load({
       const [pointsSort, setPointsSort] = react.useState(null);
       const [pageSize, setPageSize] = react.useState(20);
       const [page, setPage] = react.useState(1);
+      // Column widths the user dragged; a key that is absent keeps the
+      // browser's own layout.
+      const [widths, setWidths] = react.useState(() => loadWidths());
+      // The row whose detail dialog is open, or null.
+      const [modalRow, setModalRow] = react.useState(null);
       const picker = react.useRef(null);
       const statusPicker = react.useRef(null);
       const typePicker = react.useRef(null);
@@ -1285,6 +1467,57 @@ window.__ModuleLoader__.load({
         setPage(1);
       }, [tab, needle, statusFilter, typeFilter, systemFilter, pageSize, pointsSort]);
 
+      // The filter set survives a reload, so the workbench opens exactly where
+      // the user left it.
+      react.useEffect(() => {
+        saveFilters({ tab, status: statusFilter, type: typeFilter });
+      }, [tab, statusFilter, typeFilter]);
+
+      /** Back to the untouched view: first tab, nothing narrowed, nothing searched. */
+      const resetFilters = () => {
+        setTab("todo");
+        setStatusFilter(null);
+        setTypeFilter(null);
+        setSystemFilter(null);
+        saveSystemFilter(null);
+        setQuery("");
+      };
+
+      /** Start dragging one column's right edge. */
+      const startResize = (key, event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const cell = event.currentTarget.parentElement;
+        const startX = event.clientX;
+        const startWidth = cell !== null && cell !== undefined ? cell.getBoundingClientRect().width : (widths[key] ?? 140);
+        const move = (moveEvent) => {
+          const next = Math.max(MIN_COL_WIDTH, Math.round(startWidth + moveEvent.clientX - startX));
+          setWidths((prev) => ({ ...prev, [key]: next }));
+        };
+        const up = () => {
+          document.removeEventListener("mousemove", move);
+          document.removeEventListener("mouseup", up);
+          document.body.style.userSelect = "";
+          setWidths((prev) => {
+            saveWidths(prev);
+            return prev;
+          });
+        };
+        document.body.style.userSelect = "none";
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", up);
+      };
+
+      /** Drop one column's remembered width (double-click on its edge). */
+      const resetWidth = (key) => {
+        setWidths((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          saveWidths(next);
+          return next;
+        });
+      };
+
       const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
       const safePage = Math.min(page, pageCount);
       const pageRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize);
@@ -1329,23 +1562,78 @@ window.__ModuleLoader__.load({
         saveSystemFilter(next);
       };
 
+      // The title opens the detail dialog instead of navigating away; the id
+      // still links out to the platform. Reminder rows carry no id, so they
+      // stay plain text and open nothing.
+      const titleCell = (row) => {
+        if (row.id === "") return h("span", null, row.title);
+        return h("button", {
+          type: "button",
+          className: "dt-titleBtn",
+          title: t("col.openModal"),
+          onClick: () => setModalRow(row),
+        }, row.title);
+      };
+
+      // One header cell: the label (a sort toggle for the points column) plus
+      // the drag handle on its right edge.
+      const headOf = (column) => [
+        column.key === "points"
+          ? h("button", {
+            key: "label",
+            type: "button",
+            className: "dt-sortBtn",
+            "data-active": pointsSort === null ? undefined : "",
+            "data-dir": pointsSort === null ? "none" : pointsSort,
+            "aria-label": pointsSort === null
+              ? t("sort.pointsDesc")
+              : pointsSort === "desc"
+                ? t("sort.pointsAsc")
+                : t("sort.pointsClear"),
+            title: pointsSort === null
+              ? t("sort.pointsDesc")
+              : pointsSort === "desc"
+                ? t("sort.pointsAsc")
+                : t("sort.pointsClear"),
+            onClick: () => setPointsSort(pointsSort === null ? "desc" : pointsSort === "desc" ? "asc" : null),
+          },
+            h("span", null, column.label),
+            h("span", { className: "dt-sortMark" }, pointsSort === "desc" ? "▼" : pointsSort === "asc" ? "▲" : "↕"))
+          : h("span", { key: "label" }, column.label),
+        h("span", {
+          key: "grip",
+          className: "dt-colResize",
+          title: t("col.resize"),
+          onMouseDown: (event) => startResize(column.key, event),
+          onDoubleClick: () => resetWidth(column.key),
+        }),
+      ];
+
       const columns = tab === "review"
         ? [
           { key: "id", label: t("col.id"), render: (row) => detailCell(row, t) },
-          { key: "title", label: t("col.title"), render: (row) => row.title },
+          { key: "title", label: t("col.title"), render: titleCell },
           { key: "sceneLabel", label: t("col.reviewKind"), render: (row) => chip(row.sceneLabel) },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
           { key: "points", label: t("col.points"), render: (row) => pointsCell(row) },
+          { key: "creator", label: t("col.creator"), render: (row) => personCell(row.creator) },
+          { key: "devOwner", label: t("col.devOwner"), render: (row) => personCell(row.devOwner) },
+          { key: "testOwner", label: t("col.testOwner"), render: (row) => personCell(row.testOwner) },
+          { key: "owner", label: t("col.owner"), render: (row) => personCell(row.owner) },
           { key: "end", label: t("col.end"), render: (row) => endCell(row) },
           { key: "system", label: t("col.system"), render: (row) => systemCell(row) },
         ]
         : [
           { key: "id", label: t("col.id"), render: (row) => detailCell(row, t) },
-          { key: "title", label: t("col.title"), render: (row) => row.title },
+          { key: "title", label: t("col.title"), render: titleCell },
           { key: "type", label: t("col.type"), render: (row) => row.type === "" ? h("span", { className: "dt-muted" }, "-") : row.type },
           { key: "status", label: t("col.status"), render: (row) => chip(row.status, statusTone(row)) },
           { key: "priority", label: t("col.priority"), render: (row) => chip(row.priority, priorityTone(row.priority)) },
           { key: "points", label: t("col.points"), render: (row) => pointsCell(row) },
+          { key: "creator", label: t("col.creator"), render: (row) => personCell(row.creator) },
+          { key: "devOwner", label: t("col.devOwner"), render: (row) => personCell(row.devOwner) },
+          { key: "testOwner", label: t("col.testOwner"), render: (row) => personCell(row.testOwner) },
+          { key: "owner", label: t("col.owner"), render: (row) => personCell(row.owner) },
           { key: "end", label: t("col.end"), render: (row) => endCell(row) },
           { key: "system", label: t("col.system"), render: (row) => systemCell(row) },
         ];
@@ -1488,7 +1776,13 @@ window.__ModuleLoader__.load({
         h("div", { className: "dt-toolbar" },
           statusPickerNode,
           typePickerNode,
-          systemPicker),
+          systemPicker,
+          h("span", { style: { flex: "1 1 auto" } }),
+          h("button", {
+            type: "button",
+            className: "dt-btn",
+            onClick: resetFilters,
+          }, t("filter.reset"))),
 
         h("div", { className: "dt-body" },
           snap.loading && data === null ? null : h(react.Fragment, null,
@@ -1499,28 +1793,14 @@ window.__ModuleLoader__.load({
                   : t("empty.search"))
               : h("div", { className: "dt-tableWrap" },
                 h("table", { className: "dt-table" },
-                  h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key },
-                    column.key === "points"
-                      ? h("button", {
-                        type: "button",
-                        className: "dt-sortBtn",
-                        "data-active": pointsSort === null ? undefined : "",
-                        "data-dir": pointsSort === null ? "none" : pointsSort,
-                        "aria-label": pointsSort === null
-                          ? t("sort.pointsDesc")
-                          : pointsSort === "desc"
-                            ? t("sort.pointsAsc")
-                            : t("sort.pointsClear"),
-                        title: pointsSort === null
-                          ? t("sort.pointsDesc")
-                          : pointsSort === "desc"
-                            ? t("sort.pointsAsc")
-                            : t("sort.pointsClear"),
-                        onClick: () => setPointsSort(pointsSort === null ? "desc" : pointsSort === "desc" ? "asc" : null),
-                      },
-                        h("span", null, column.label),
-                        h("span", { className: "dt-sortMark" }, pointsSort === "desc" ? "▼" : pointsSort === "asc" ? "▲" : "↕"))
-                      : column.label)))),
+                  h("colgroup", null, columns.map((column) => h("col", {
+                    key: column.key,
+                    style: widths[column.key] === undefined ? undefined : { width: widths[column.key] + "px" },
+                  }))),
+                  h("thead", null, h("tr", null, columns.map((column) => h("th", {
+                    key: column.key,
+                    style: widths[column.key] === undefined ? undefined : { width: widths[column.key] + "px" },
+                  }, headOf(column))))),
                   h("tbody", null, pageRows.map((row) => h("tr", { key: row.id === "" ? row.title + row.scene : row.id },
                     columns.map((column) => h("td", { key: column.key }, column.render(row)))))))),
             h("div", { className: "dt-footer", style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
@@ -1539,7 +1819,153 @@ window.__ModuleLoader__.load({
                 }, [20, 50, 100].map((size) => h("option", { key: size, value: String(size) }, fill(t("pager.sizeOption"), { n: size })))),
                 h("button", { type: "button", className: "dt-btn", disabled: safePage <= 1, onClick: () => setPage(safePage - 1) }, t("pager.prev")),
                 h("span", null, fill(t("pager.info"), { page: safePage, pages: pageCount, n: rows.length })),
-                h("button", { type: "button", className: "dt-btn", disabled: safePage >= pageCount, onClick: () => setPage(safePage + 1) }, t("pager.next")))))));
+                h("button", { type: "button", className: "dt-btn", disabled: safePage >= pageCount, onClick: () => setPage(safePage + 1) }, t("pager.next"))))),
+        modalRow === null ? null : h(ItemModal, {
+          key: "modal",
+          t,
+          api,
+          row: modalRow,
+          onClose: () => setModalRow(null),
+        })));
+    }
+
+    /** One activity-log line: who, when, what changed, and its two values. */
+    function LogRow(props) {
+      const t = props.t;
+      const entry = props.entry;
+      const user = entry.user === "" ? "?" : entry.user;
+      const initial = user.slice(0, 1);
+      const sameValue = entry.before === entry.after;
+      return h("div", { className: "dt-logRow" },
+        h("span", { className: "dt-logAvatar", title: user }, initial),
+        h("div", { className: "dt-logBody" },
+          h("div", { className: "dt-logHead" },
+            h("span", { className: "dt-logUser" }, user),
+            h("span", { className: "dt-logTime" }, entry.time)),
+          h("div", { className: "dt-logItem" }, entry.item),
+          entry.before === "" && entry.after === ""
+            ? null
+            : h("div", { className: "dt-logValues" },
+              h("span", { className: "dt-logBefore", title: entry.before }, entry.before === "" ? "-" : entry.before),
+              h("span", { className: "dt-logArrow" }, "→"),
+              h("span", { className: "dt-logAfter", title: entry.after }, entry.after === "" ? "-" : entry.after)),
+          entry.flow === true && sameValue ? h("span", { className: "dt-logTag" }, t("modal.autoFlow")) : null));
+    }
+
+    /** The detail dialog: grouped fields first, the activity log second. */
+    function ItemModal(props) {
+      const t = props.t;
+      const api = props.api;
+      const row = props.row;
+      const [tabKey, setTabKey] = react.useState("detail");
+      const [detail, setDetail] = react.useState({ loading: true, data: null, error: "" });
+      const [log, setLog] = react.useState({ loading: true, rows: [], error: "", page: 0, more: false, loadingMore: false });
+
+      react.useEffect(() => {
+        let alive = true;
+        setDetail({ loading: true, data: null, error: "" });
+        api.itemDetail(row.id, row.systemId).then((data) => {
+          if (alive) setDetail({ loading: false, data, error: "" });
+        }).catch((error) => {
+          if (alive) setDetail({ loading: false, data: null, error: reasonOf(error) });
+        });
+        setLog({ loading: true, rows: [], error: "", page: 0, more: false, loadingMore: false });
+        api.itemLog(row.id, 1, 50).then((data) => {
+          if (alive) setLog({ loading: false, rows: data.rows, error: "", page: 1, more: data.rows.length >= 50, loadingMore: false });
+        }).catch((error) => {
+          if (alive) setLog({ loading: false, rows: [], error: reasonOf(error), page: 0, more: false, loadingMore: false });
+        });
+        return () => {
+          alive = false;
+        };
+      }, [api, row.id, row.systemId]);
+
+      // Escape closes the dialog, like every other overlay in the panel.
+      const onClose = props.onClose;
+      react.useEffect(() => {
+        const onKey = (event) => {
+          if (event.key === "Escape") onClose();
+        };
+        document.addEventListener("keydown", onKey);
+        return () => document.removeEventListener("keydown", onKey);
+      }, [onClose]);
+
+      const loadMore = () => {
+        if (log.loadingMore || log.page === 0) return;
+        const next = log.page + 1;
+        setLog((prev) => ({ ...prev, loadingMore: true }));
+        api.itemLog(row.id, next, 50).then((data) => {
+          setLog((prev) => ({
+            ...prev,
+            loadingMore: false,
+            page: next,
+            more: data.rows.length >= 50,
+            rows: prev.rows.concat(data.rows),
+          }));
+        }).catch((error) => {
+          setLog((prev) => ({ ...prev, loadingMore: false, error: reasonOf(error) }));
+        });
+      };
+
+      const detailBody = detail.loading
+        ? h("div", { className: "dt-empty" }, t("modal.loading"))
+        : detail.error !== ""
+          ? notice("error", fill(t("modal.error"), { message: detail.error }))
+          : detail.data === null || detail.data.groups.length === 0
+            ? h("div", { className: "dt-empty" }, t("modal.empty"))
+            : detail.data.groups.map((group) => h("div", { key: group.key, className: "dt-group" },
+              h("div", { className: "dt-groupTitle" }, t("modal.group." + group.key)),
+              group.rows.map((entry) => h("div", { key: entry.code, className: "dt-groupRow" },
+                h("span", { className: "dt-groupName" }, entry.name),
+                h("span", { className: "dt-groupValue", title: entry.value }, entry.value === "" ? "-" : entry.value)))));
+
+      const logBody = log.loading
+        ? h("div", { className: "dt-empty" }, t("modal.loading"))
+        : log.error !== ""
+          ? notice("error", fill(t("modal.error"), { message: log.error }))
+          : log.rows.length === 0
+            ? h("div", { className: "dt-empty" }, t("modal.logEmpty"))
+            : h(react.Fragment, null,
+              log.rows.map((entry) => h(LogRow, { key: entry.id, t, entry })),
+              log.more
+                ? h("button", {
+                  type: "button",
+                  className: "dt-btn",
+                  disabled: log.loadingMore,
+                  onClick: loadMore,
+                }, log.loadingMore ? t("modal.moreLoading") : t("modal.more"))
+                : null);
+
+      return h("div", {
+        className: "dt-modalMask",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-label": row.title,
+        onClick: (event) => {
+          if (event.target === event.currentTarget) onClose();
+        },
+      },
+        h("div", { className: "dt-modal" },
+          h("div", { className: "dt-modalHead" },
+            h("span", { className: "dt-modalId" }, row.id),
+            h("h3", { className: "dt-modalTitle", title: row.title }, row.title),
+            detailCell(row, t),
+            h("span", { style: { flex: "1 1 auto" } }),
+            h("button", { type: "button", className: "dt-btn", onClick: onClose }, t("modal.close"))),
+          h("div", { className: "dt-modalTabs", role: "tablist" },
+            [
+              { key: "detail", label: t("modal.detail") },
+              { key: "log", label: t("modal.log") },
+            ].map((entry) => h("button", {
+              key: entry.key,
+              type: "button",
+              role: "tab",
+              className: "dt-modalTab",
+              "aria-selected": tabKey === entry.key ? "true" : "false",
+              "data-active": tabKey === entry.key ? "" : undefined,
+              onClick: () => setTabKey(entry.key),
+            }, entry.label))),
+          h("div", { className: "dt-modalBody" }, tabKey === "detail" ? detailBody : logBody)));
     }
 
     /**
@@ -1585,6 +2011,13 @@ window.__ModuleLoader__.load({
       if (row.system === "") return h("span", { className: "dt-muted" }, "-");
       const parts = String(row.system).split("/");
       return h("span", { title: row.system }, parts[0]);
+    }
+
+    /** One person cell: the platform's full "name(account)" text, or "-". */
+    function personCell(value) {
+      const text = typeof value === "string" ? value.trim() : "";
+      if (text === "") return h("span", { className: "dt-muted" }, "-");
+      return h("span", { className: "dt-person", title: text }, text);
     }
     // #endregion
 

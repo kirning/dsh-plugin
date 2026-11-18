@@ -76,6 +76,14 @@ const TEMPLATE_TYPES = {
  */
 const TASK_POINT_CODE = '456e2950-4644-4d9c-b99f-ae2ef52311aa'
 
+/**
+ * The tenant's own person fields. "开发负责人" and "测试负责人" are custom
+ * fields addressed by their uuid codes — only "创建人" and "责任人" have the
+ * readable `fc_*` codes.
+ */
+export const DEV_OWNER_CODE = 'e57e7bad-245e-4331-a5ab-3acab22cf10f'
+export const TEST_OWNER_CODE = '0796edab-c5d2-4915-ab58-8c95d35f4e77'
+
 /** Field codes requested from the platform for every bucket. */
 const FIELD_CODES = [
   'id',
@@ -91,6 +99,8 @@ const FIELD_CODES = [
   'fc_create_time',
   'systemTeamName',
   TASK_POINT_CODE,
+  DEV_OWNER_CODE,
+  TEST_OWNER_CODE,
 ]
 
 /** Per-scene page size; the platform caps a page at {@link PLATFORM_PAGE_CAP}. */
@@ -391,10 +401,46 @@ export class DevopsService {
   }
 
   /**
+   * One work item's full detail, grouped for the panel's detail tab.
+   *
+   * `getItemDetail` answers with a `fieldList` of `{fieldCode, fieldName,
+   * displayValue}` entries; grouping by field code keeps the panel free of
+   * tenant-specific uuid codes.
+   * @param {string} id - work item id, e.g. `MMAI131864`.
+   * @param {string} [systemId] - the row's own system, so its custom fields resolve.
+   */
+  async itemDetail(id, systemId) {
+    const identity = await this.resolveIdentity()
+    const target = typeof systemId === 'string' && systemId !== '' ? systemId : identity.systemId
+    const body = await this.openApi({
+      path: `/agile-service/open/demand/ai/getItemDetail/${encodeURIComponent(id)}`,
+      method: 'GET',
+      identity: { ...identity, systemId: target },
+    })
+    return normalizeDetail(body, id, target, identity.orgId)
+  }
+
+  /**
+   * One page of an item's activity log: field changes, status flows and
+   * personnel changes, newest first (the platform already orders them).
+   * @param {string} id - work item id.
+   * @param {number} page - 1-based page number.
+   * @param {number} size - rows per page.
+   */
+  async itemLog(id, page, size) {
+    const identity = await this.resolveIdentity()
+    const body = await this.openApi({
+      path: `/agile-service/opera/list/${encodeURIComponent(id)}/1?pageNum=${page}&pageSize=${size}`,
+      method: 'GET',
+      identity,
+    })
+    return normalizeLog(body)
+  }
+
+  /**
    * Resolve the request headers the platform needs: one system id and its org.
    * The workbench is org-scoped, so any system the account can see works.
-   */
-  async resolveIdentity() {
+   */  async resolveIdentity() {
     const configured = {
       orgId: typeof this.identity.orgId === 'string' && this.identity.orgId !== '' ? this.identity.orgId : null,
       systemId: typeof this.identity.systemId === 'string' && this.identity.systemId !== '' ? this.identity.systemId : null,
@@ -506,6 +552,10 @@ export function normalizeRow(item, scene) {
     points: pointsOf(fields[TASK_POINT_CODE]),
     owner: value('fc_responsible_person') ?? '',
     creator: value('fc_creator') ?? '',
+    // The two custom person fields are absent on templates that do not carry
+    // them, so an empty string means "this template has no such field".
+    devOwner: value(DEV_OWNER_CODE) ?? '',
+    testOwner: value(TEST_OWNER_CODE) ?? '',
     created: value('fc_create_time'),
     start,
     end,
@@ -539,6 +589,133 @@ export function plainText(html) {
     .replace(/\s+/g, ' ')
     .replace(/\s*\[TRUNCATED\]\s*$/i, '…')
     .trim()
+}
+
+/**
+ * Person fields, in the order the detail tab shows them: creator, owner, then
+ * the two tenant-specific owner fields.
+ */
+const PEOPLE_CODES = ['fc_creator', 'fc_responsible_person', DEV_OWNER_CODE, TEST_OWNER_CODE]
+
+/** Field codes that belong to the "priority and schedule" group. */
+const PLAN_CODES = [
+  'fc_priority',
+  TASK_POINT_CODE,
+  'fc_plan_start_time',
+  'fc_plan_test_time',
+  'fc_plan_end_time',
+  'fc_expect_finish_time',
+  'fc_actual_start_time',
+  'fc_actual_end_time',
+]
+
+/** The group a field code belongs to; anything unknown is "basic". */
+function groupOf(code) {
+  if (PEOPLE_CODES.includes(code)) return 'people'
+  if (PLAN_CODES.includes(code)) return 'plan'
+  if (code === 'description') return 'desc'
+  return 'basic'
+}
+
+/** A field entry's display text, or "" when it carries nothing. */
+function shownValue(entry) {
+  if (entry === null || entry === undefined) return ''
+  const shown = entry.displayValue
+  if (typeof shown === 'string' && shown.trim() !== '') return shown.trim()
+  if (typeof shown === 'number') return String(shown)
+  const raw = entry.value
+  if (Array.isArray(raw)) return raw.filter(part => typeof part === 'string' && part !== '').join('、')
+  if (typeof raw === 'string' && raw.trim() !== '') return codeText(raw)
+  if (typeof raw === 'number') return String(raw)
+  return ''
+}
+
+/** Rich-text values arrive as HTML; plain text is what the panel shows. */
+function codeText(raw) {
+  if (!/<[a-z/][^>]*>/i.test(raw)) return raw.trim()
+  return plainText(raw)
+}
+
+/**
+ * Group one `getItemDetail` answer into the detail tab's three sections.
+ *
+ * Everything the platform returns is kept: the panel decides how to lay a
+ * section out, and an empty section is simply dropped here.
+ * @param {any} body - platform body of `getItemDetail`.
+ * @param {string} id - work item id, used when the body omits it.
+ * @param {string} systemId - the row's system.
+ * @param {string} [orgId] - the account's organization.
+ */
+export function normalizeDetail(body, id, systemId, orgId) {
+  // `openApi` hands back the platform envelope `{code, status, body, …}`; the
+  // work item itself sits one level down.
+  const envelope = body !== null && typeof body === 'object' ? body : {}
+  const source = envelope.body !== null && typeof envelope.body === 'object' ? envelope.body : envelope
+  const list = Array.isArray(source.fieldList) ? source.fieldList : []
+  const groups = { basic: [], people: [], plan: [], desc: [] }
+  let title = typeof source.title === 'string' ? plainText(source.title) : ''
+  for (const entry of list) {
+    const code = typeof entry?.fieldCode === 'string' ? entry.fieldCode : ''
+    const name = typeof entry?.fieldName === 'string' && entry.fieldName !== '' ? entry.fieldName : code
+    const value = shownValue(entry)
+    if (code === 'title' && value !== '') {
+      title = value
+      continue
+    }
+    if (value === '') continue
+    groups[groupOf(code)].push({ code, name, value })
+  }
+  // The description is a top-level rich-text field, not a `fieldList` entry.
+  const description = typeof source.description === 'string' ? codeText(source.description) : ''
+  if (description !== '') groups.desc.push({ code: 'description', name: '描述', value: description })
+  const ordered = ['basic', 'people', 'plan', 'desc']
+    .map(key => ({ key, rows: groups[key] }))
+    .filter(group => group.rows.length > 0)
+  return {
+    id: typeof source.id === 'string' && source.id !== '' ? source.id : id,
+    title,
+    systemId: typeof source.systemId === 'string' && source.systemId !== '' ? source.systemId : systemId,
+    orgId: orgId ?? null,
+    groups: ordered,
+  }
+}
+
+/**
+ * Flatten one `opera/list` page into the activity-log rows the panel shows.
+ * @param {any} body - platform body of `opera/list`.
+ */
+export function normalizeLog(body) {
+  const raw = Array.isArray(body)
+    ? body
+    : Array.isArray(body?.body)
+      ? body.body
+      : Array.isArray(body?.data)
+        ? body.data
+        : []
+  const rows = []
+  for (const entry of raw) {
+    if (entry === null || entry === undefined) continue
+    rows.push({
+      id: typeof entry.id === 'string' ? entry.id : '',
+      user: typeof entry.createUser === 'string' ? entry.createUser : '',
+      time: typeof entry.createTime === 'string' ? entry.createTime : '',
+      // The platform already prefixes the field name with the action, e.g.
+      // "更新  任务点数"; collapsing the doubled space keeps rows readable.
+      item: typeof entry.item === 'string' ? entry.item.replace(/\s+/g, ' ').trim() : '',
+      before: textOfLogValue(entry.beforeValue),
+      after: textOfLogValue(entry.afterValue),
+      flow: entry.flag === 1,
+    })
+  }
+  return { rows, fetchedAt: new Date().toISOString() }
+}
+
+/** A before/after value rendered for display; null means "was empty". */
+function textOfLogValue(value) {
+  if (value === null || value === undefined) return ''
+  if (Array.isArray(value)) return value.filter(part => part !== null && part !== undefined).map(part => String(part)).join('、')
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  return String(value)
 }
 
 /**
