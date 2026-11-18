@@ -68,6 +68,11 @@ window.__ModuleLoader__.load({
       ".dt-table td{padding:7px 10px;border-bottom:1px solid var(--dsw-alias-separator-primary);vertical-align:middle}",
       ".dt-table tbody tr:last-child td{border-bottom:none}",
       ".dt-table tbody tr:hover td{background:var(--dsw-alias-interactive-bg-hover)}",
+      ".dt-sortBtn{display:inline-flex;align-items:center;gap:4px;background:none;border:none;margin:0;padding:0;font:inherit;color:inherit;cursor:pointer}",
+      ".dt-sortBtn:hover{color:var(--dsw-alias-label-primary)}",
+      ".dt-sortBtn[data-active]{color:var(--dsw-alias-state-business-primary)}",
+      ".dt-sortMark{font-size:10px;line-height:1;opacity:.45}",
+      ".dt-sortBtn[data-active] .dt-sortMark{opacity:1}",
       ".dt-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}",
       ".dt-muted{color:var(--dsw-alias-label-tertiary)}",
       ".dt-num{font-variant-numeric:tabular-nums}",
@@ -217,14 +222,20 @@ window.__ModuleLoader__.load({
       "filter.systemEmpty": "只显示勾选的系统，当前没有勾选。",
       "filter.statusCount": "已选 {n}/{m}",
       "filter.statusEmpty": "只显示勾选的状态，当前没有勾选。",
+      "filter.typeCount": "已选 {n}/{m}",
+      "filter.typeEmpty": "只显示勾选的类型，当前没有勾选。",
+      "filter.typeNone": "未分类",
       "pager.size": "每页条数",
       "pager.sizeOption": "{n} 条/页",
       "pager.prev": "上一页",
       "pager.next": "下一页",
       "pager.info": "第 {page}/{pages} 页 · 共 {n} 条",
       "tile.points": "任务点数",
-      "tile.pointsHint": "勾选 {n} 个系统的合计",
-      "tile.pointsNone": "没有可统计的系统",
+      "tile.pointsHint": "全部任务的合计，不受筛选影响",
+      "tile.pointsNone": "暂无可统计的任务",
+      "sort.pointsDesc": "按任务点数从多到少排序",
+      "sort.pointsAsc": "按任务点数从少到多排序",
+      "sort.pointsClear": "已取消排序，点击恢复从多到少",
       "col.openDetail": "在 DevOps 网页打开",
       "state.fetched": "更新于 {time}",
       "state.stale": "数据来自缓存",
@@ -366,14 +377,20 @@ window.__ModuleLoader__.load({
       "filter.systemEmpty": "Only checked systems are shown; none is checked.",
       "filter.statusCount": "{n}/{m} selected",
       "filter.statusEmpty": "Only checked statuses are shown; none is checked.",
+      "filter.typeCount": "{n}/{m} selected",
+      "filter.typeEmpty": "Only checked types are shown; none is checked.",
+      "filter.typeNone": "Unclassified",
       "pager.size": "Rows per page",
       "pager.sizeOption": "{n} per page",
       "pager.prev": "Previous",
       "pager.next": "Next",
       "pager.info": "Page {page}/{pages} · {n} items",
       "tile.points": "Task points",
-      "tile.pointsHint": "Sum across {n} checked systems",
-      "tile.pointsNone": "No system to sum over",
+      "tile.pointsHint": "Total across every task, filters do not apply",
+      "tile.pointsNone": "No task to sum over",
+      "sort.pointsDesc": "Sort by task points, most first",
+      "sort.pointsAsc": "Sort by task points, fewest first",
+      "sort.pointsClear": "Sorting cleared; click to use most first",
       "col.openDetail": "Open in DevOps web",
       "state.fetched": "Updated {time}",
       "state.stale": "served from cache",
@@ -1169,26 +1186,32 @@ window.__ModuleLoader__.load({
       const [tab, setTab] = react.useState("todo");
       const [query, setQuery] = react.useState("");
       const [statusFilter, setStatusFilter] = react.useState(null);
-      const [typeFilter, setTypeFilter] = react.useState("");
+      const [typeFilter, setTypeFilter] = react.useState(null);
       const [systemFilter, setSystemFilter] = react.useState(() => loadSystemFilter());
       const [pickerOpen, setPickerOpen] = react.useState(false);
       const [statusOpen, setStatusOpen] = react.useState(false);
+      const [typeOpen, setTypeOpen] = react.useState(false);
+      // "desc" → "asc" → null: the points header cycles through both
+      // directions and back to the default order.
+      const [pointsSort, setPointsSort] = react.useState(null);
       const [pageSize, setPageSize] = react.useState(20);
       const [page, setPage] = react.useState(1);
       const picker = react.useRef(null);
       const statusPicker = react.useRef(null);
+      const typePicker = react.useRef(null);
       const snap = useSnapshot(api);
 
-      // Close the system and status menus on any click elsewhere.
+      // Close the system, status and type menus on any click elsewhere.
       react.useEffect(() => {
-        if (!pickerOpen && !statusOpen) return undefined;
+        if (!pickerOpen && !statusOpen && !typeOpen) return undefined;
         const onDown = (event) => {
           if (pickerOpen && picker.current !== null && !picker.current.contains(event.target)) setPickerOpen(false);
           if (statusOpen && statusPicker.current !== null && !statusPicker.current.contains(event.target)) setStatusOpen(false);
+          if (typeOpen && typePicker.current !== null && !typePicker.current.contains(event.target)) setTypeOpen(false);
         };
         document.addEventListener("mousedown", onDown);
         return () => document.removeEventListener("mousedown", onDown);
-      }, [pickerOpen, statusOpen]);
+      }, [pickerOpen, statusOpen, typeOpen]);
 
       const data = snap.data;
       const tabs = [
@@ -1201,9 +1224,10 @@ window.__ModuleLoader__.load({
       const buckets = data !== null && data.tabs !== null && data.tabs !== undefined ? data.tabs : {};
       const bucketOf = (id) => (buckets[id] !== undefined && buckets[id] !== null ? buckets[id] : { items: [], total: 0 });
       // The "all" tab merges the three buckets, keeping the first occurrence of
-      // every work item and every distinct reminder.
+      // every work item and every distinct reminder. The merged rows are always
+      // built: the task-point tile sums over them whatever tab is showing.
       const merged = [];
-      if (tab === "all") {
+      {
         const seenKeys = new Set();
         for (const id of ["todo", "review", "created"]) {
           for (const row of bucketOf(id).items) {
@@ -1226,36 +1250,54 @@ window.__ModuleLoader__.load({
       const statusOptions = distinctOf(all, (row) => row.status);
       const statusChecked = statusFilter === null ? null : new Set(statusFilter);
       const statusActive = statusChecked !== null && statusChecked.size < statusOptions.length;
+      // Items without a type ("-") are offered as their own checkbox so a
+      // narrowed type list can bring them back.
+      const typedValues = distinctOf(all, (row) => row.type);
+      const blankType = all.some((row) => typeof row.type !== "string" || row.type === "");
+      const typeOptions = blankType ? typedValues.concat("") : typedValues;
+      const typeChecked = typeFilter === null ? null : new Set(typeFilter);
+      const typeActive = typeChecked !== null && typeChecked.size < typeOptions.length;
 
       const rows = all.filter((row) => {
         if (checked !== null && !checked.has(typeof row.systemId === "string" ? row.systemId : "")) return false;
         if (statusChecked !== null && !statusChecked.has(row.status)) return false;
-        if (typeFilter !== "" && row.type !== typeFilter) return false;
+        if (typeChecked !== null && !typeChecked.has(typeof row.type === "string" ? row.type : "")) return false;
         if (needle === "") return true;
         return String(row.title).toLowerCase().includes(needle) || String(row.id).toLowerCase().includes(needle);
       });
 
-      // Any change to the filters starts again from the first page.
+      // Only the points column sorts; rows without a value always go last so
+      // the ordering stays predictable in both directions.
+      const pointOf = (row) => (typeof row.points === "number" && Number.isFinite(row.points) ? row.points : null);
+      const sortedRows = pointsSort === null
+        ? rows
+        : rows.slice().sort((left, right) => {
+          const a = pointOf(left);
+          const b = pointOf(right);
+          if (a === null && b === null) return 0;
+          if (a === null) return 1;
+          if (b === null) return -1;
+          return pointsSort === "desc" ? b - a : a - b;
+        });
+
+      // Any change to the filters or the sort starts again from the first page.
       react.useEffect(() => {
         setPage(1);
-      }, [tab, needle, statusFilter, typeFilter, systemFilter, pageSize]);
+      }, [tab, needle, statusFilter, typeFilter, systemFilter, pageSize, pointsSort]);
 
-      const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+      const pageCount = Math.max(1, Math.ceil(sortedRows.length / pageSize));
       const safePage = Math.min(page, pageCount);
-      const pageRows = rows.slice((safePage - 1) * pageSize, safePage * pageSize);
+      const pageRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-      // The point total follows the same rows the table shows, so a narrowed
-      // system list immediately narrows the number too.
-      const pointSum = rows.reduce((total, row) => (
-        typeof row.points === "number" && Number.isFinite(row.points) ? total + row.points : total
-      ), 0);
-      const pointRows = rows.filter((row) => typeof row.points === "number" && Number.isFinite(row.points)).length;
-      const pointHint = systems.length === 0
-        ? t("tile.pointsNone")
-        : fill(t("tile.pointsHint"), { n: checked === null ? systems.length : checked.size });
+      // The point total is a global figure: it sums the merged three buckets,
+      // so no filter (system, status, type, search) can change it.
+      const pointSum = merged.reduce((total, row) => {
+        const value = pointOf(row);
+        return value === null ? total : total + value;
+      }, 0);
+      const pointRows = merged.filter((row) => pointOf(row) !== null).length;
+      const pointHint = merged.length === 0 ? t("tile.pointsNone") : t("tile.pointsHint");
       const pointSummary = pointRows === 0 ? "-" : String(Math.round(pointSum * 100) / 100);
-
-      const typeOptions = distinctOf(all, (row) => row.type);
 
       const toggleStatus = (value) => {
         const base = statusChecked === null ? new Set(statusOptions) : new Set(statusChecked);
@@ -1264,6 +1306,14 @@ window.__ModuleLoader__.load({
         setStatusFilter(statusOptions.filter((entry) => base.has(entry)));
       };
       const setAllStatus = (on) => setStatusFilter(on ? statusOptions : []);
+
+      const toggleType = (value) => {
+        const base = typeChecked === null ? new Set(typeOptions) : new Set(typeChecked);
+        if (base.has(value)) base.delete(value);
+        else base.add(value);
+        setTypeFilter(typeOptions.filter((entry) => base.has(entry)));
+      };
+      const setAllType = (on) => setTypeFilter(on ? typeOptions : []);
 
       const toggleSystem = (id) => {
         const base = checked === null ? new Set(systems.map((entry) => entry.id)) : new Set(checked);
@@ -1311,16 +1361,6 @@ window.__ModuleLoader__.load({
             ? h("span", { className: "dt-badge", "data-state": "ok", title: fill(t("state.fetched"), { time: fetchedAt }) }, t("state.stale"))
             : h("span", { className: "dt-badge", "data-state": "ok" }, fill(t("state.fetched"), { time: fetchedAt }));
 
-      const select = (value, options, onPick, label) => h("select", {
-        className: "dt-select",
-        value,
-        "aria-label": label,
-        title: label,
-        onChange: (event) => onPick(event.target.value),
-      },
-        h("option", { value: "" }, label + "：" + t("filter.all")),
-        options.map((option) => h("option", { key: option, value: option }, option)));
-
       const systemPicker = h("div", { className: "dt-picker", ref: picker },
         h("button", {
           type: "button",
@@ -1367,6 +1407,32 @@ window.__ModuleLoader__.load({
                   onChange: () => toggleStatus(option),
                 }),
                 h("span", null, option))))
+          : null);
+
+      // Types are checked exactly like statuses: null means "everything",
+      // an empty array means the user explicitly cleared the list.
+      const typePickerNode = h("div", { className: "dt-picker", ref: typePicker },
+        h("button", {
+          type: "button",
+          className: "dt-btn",
+          "data-active": typeActive ? "" : undefined,
+          title: t("filter.type"),
+          onClick: () => setTypeOpen((open) => !open),
+        }, t("filter.type") + "：" + fill(t("filter.typeCount"), { n: typeChecked === null ? typeOptions.length : typeChecked.size, m: typeOptions.length })),
+        typeOpen
+          ? h("div", { className: "dt-pickerMenu", role: "group", "aria-label": t("filter.type") },
+            h("div", { className: "dt-pickerHead" },
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllType(true) }, t("filter.systemAll")),
+              h("button", { type: "button", className: "dt-btn", onClick: () => setAllType(false) }, t("filter.systemClear"))),
+            typeOptions.length === 0
+              ? h("span", { className: "dt-muted", style: { fontSize: "12px" } }, t("filter.typeEmpty"))
+              : typeOptions.map((option) => h("label", { key: option === "" ? "__blank" : option, className: "dt-pickerItem" },
+                h("input", {
+                  type: "checkbox",
+                  checked: typeChecked === null || typeChecked.has(option),
+                  onChange: () => toggleType(option),
+                }),
+                h("span", null, option === "" ? t("filter.typeNone") : option))))
           : null);
 
       return h(react.Fragment, null,
@@ -1421,19 +1487,40 @@ window.__ModuleLoader__.load({
 
         h("div", { className: "dt-toolbar" },
           statusPickerNode,
-          select(typeFilter, typeOptions, setTypeFilter, t("filter.type")),
+          typePickerNode,
           systemPicker),
 
         h("div", { className: "dt-body" },
           snap.loading && data === null ? null : h(react.Fragment, null,
             rows.length === 0
               ? h("div", { className: "dt-empty" },
-                needle === "" && statusFilter === null && typeFilter === "" && !systemsActive
+                needle === "" && statusFilter === null && typeFilter === null && !systemsActive
                   ? t("empty." + tab)
                   : t("empty.search"))
               : h("div", { className: "dt-tableWrap" },
                 h("table", { className: "dt-table" },
-                  h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key }, column.label)))),
+                  h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key },
+                    column.key === "points"
+                      ? h("button", {
+                        type: "button",
+                        className: "dt-sortBtn",
+                        "data-active": pointsSort === null ? undefined : "",
+                        "data-dir": pointsSort === null ? "none" : pointsSort,
+                        "aria-label": pointsSort === null
+                          ? t("sort.pointsDesc")
+                          : pointsSort === "desc"
+                            ? t("sort.pointsAsc")
+                            : t("sort.pointsClear"),
+                        title: pointsSort === null
+                          ? t("sort.pointsDesc")
+                          : pointsSort === "desc"
+                            ? t("sort.pointsAsc")
+                            : t("sort.pointsClear"),
+                        onClick: () => setPointsSort(pointsSort === null ? "desc" : pointsSort === "desc" ? "asc" : null),
+                      },
+                        h("span", null, column.label),
+                        h("span", { className: "dt-sortMark" }, pointsSort === "desc" ? "▼" : pointsSort === "asc" ? "▲" : "↕"))
+                      : column.label)))),
                   h("tbody", null, pageRows.map((row) => h("tr", { key: row.id === "" ? row.title + row.scene : row.id },
                     columns.map((column) => h("td", { key: column.key }, column.render(row)))))))),
             h("div", { className: "dt-footer", style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
