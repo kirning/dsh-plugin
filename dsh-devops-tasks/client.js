@@ -109,7 +109,7 @@ window.__ModuleLoader__.load({
       ".dt-logBefore{text-decoration:line-through;opacity:.7;overflow-wrap:anywhere}",
       ".dt-logArrow{opacity:.6}",
       ".dt-logAfter{color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}",
-      ".dt-logTag{display:inline-block;font-size:10.5px;color:var(--dsw-alias-label-tertiary);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:0 6px;line-height:1.6;width:max-content}",
+      ".dt-logTag{display:inline-block;flex:none;margin-top:2px;font-size:10.5px;color:var(--dsw-alias-label-tertiary);border:1px solid var(--dsw-alias-border-l2);border-radius:999px;padding:0 6px;line-height:1.6;width:max-content}",
       ".dt-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}",
       ".dt-muted{color:var(--dsw-alias-label-tertiary)}",
       ".dt-num{font-variant-numeric:tabular-nums}",
@@ -275,12 +275,16 @@ window.__ModuleLoader__.load({
       "pager.info": "第 {page}/{pages} 页 · 共 {n} 条",
       "tile.points": "任务点数",
       "tile.pointsHint": "全部任务的合计，不受筛选影响",
+      "tile.pointsHintMonth": "{month} 创建的任务合计",
       "tile.pointsNone": "暂无可统计的任务",
       "sort.pointsDesc": "按任务点数从多到少排序",
       "sort.pointsAsc": "按任务点数从少到多排序",
       "sort.pointsClear": "已取消排序，点击恢复从多到少",
       "col.openDetail": "在 DevOps 网页打开",
       "filter.reset": "重置筛选",
+      "filter.month": "创建年月",
+      "filter.monthAny": "全部年月",
+      "filter.monthEmpty": "没有可选的年月",
       "modal.detail": "详细信息",
       "modal.log": "活动日志",
       "modal.group.basic": "基本信息",
@@ -454,12 +458,16 @@ window.__ModuleLoader__.load({
       "pager.info": "Page {page}/{pages} · {n} items",
       "tile.points": "Task points",
       "tile.pointsHint": "Total across every task, filters do not apply",
+      "tile.pointsHintMonth": "Tasks created in {month}",
       "tile.pointsNone": "No task to sum over",
       "sort.pointsDesc": "Sort by task points, most first",
       "sort.pointsAsc": "Sort by task points, fewest first",
       "sort.pointsClear": "Sorting cleared; click to use most first",
       "col.openDetail": "Open in DevOps web",
       "filter.reset": "Reset filters",
+      "filter.month": "Created month",
+      "filter.monthAny": "All months",
+      "filter.monthEmpty": "No month to pick",
       "modal.detail": "Details",
       "modal.log": "Activity log",
       "modal.group.basic": "Basics",
@@ -808,12 +816,26 @@ window.__ModuleLoader__.load({
       return value.filter((entry) => typeof entry === "string");
     }
 
+    /** The "YYYY-MM" bucket a platform date string falls into, or "". */
+    function monthOf(value) {
+      if (typeof value !== "string") return "";
+      const hit = /^(\d{4})-(\d{2})/.exec(value);
+      return hit === null ? "" : hit[1] + "-" + hit[2];
+    }
+
+    /** The month a freshly opened workbench filters on. */
+    function currentMonth() {
+      const now = new Date();
+      return String(now.getFullYear()) + "-" + String(now.getMonth() + 1).padStart(2, "0");
+    }
+
     /**
      * The filter set the previous visit left behind. A missing list means
-     * "everything is checked", exactly like the live `null` state.
+     * "everything is checked", exactly like the live `null` state; a missing
+     * month means the current month, which is the default the panel opens on.
      */
     function loadFilters() {
-      const empty = { tab: null, status: null, type: null };
+      const empty = { tab: null, status: null, type: null, month: currentMonth() };
       try {
         const raw = window.localStorage.getItem(FILTER_STORE);
         if (raw === null) return empty;
@@ -822,7 +844,12 @@ window.__ModuleLoader__.load({
         const tab = parsed.tab === "all" || parsed.tab === "todo" || parsed.tab === "review" || parsed.tab === "created"
           ? parsed.tab
           : null;
-        return { tab, status: listOf(parsed.status), type: listOf(parsed.type) };
+        // "" is the explicit "every month" choice, so it must not fall back to
+        // the current month the way a missing key does.
+        const month = typeof parsed.month === "string" && (parsed.month === "" || monthOf(parsed.month + "-01") !== "")
+          ? parsed.month
+          : currentMonth();
+        return { tab, status: listOf(parsed.status), type: listOf(parsed.type), month };
       } catch {
         return empty;
       }
@@ -835,6 +862,7 @@ window.__ModuleLoader__.load({
           tab: next.tab ?? null,
           status: next.status ?? null,
           type: next.type ?? null,
+          month: typeof next.month === "string" ? next.month : currentMonth(),
         }));
       } catch {
         /* keep the session-local choice */
@@ -1364,6 +1392,9 @@ window.__ModuleLoader__.load({
       // still means "everything", an array is the exact checked set.
       const [statusFilter, setStatusFilter] = react.useState(() => loadFilters().status);
       const [typeFilter, setTypeFilter] = react.useState(() => loadFilters().type);
+      // "YYYY-MM" narrows the table and the task-point tile to the month the
+      // work was created, "" means every month.
+      const [monthFilter, setMonthFilter] = react.useState(() => loadFilters().month);
       const [systemFilter, setSystemFilter] = react.useState(() => loadSystemFilter());
       const [pickerOpen, setPickerOpen] = react.useState(false);
       const [statusOpen, setStatusOpen] = react.useState(false);
@@ -1444,6 +1475,12 @@ window.__ModuleLoader__.load({
         if (checked !== null && !checked.has(typeof row.systemId === "string" ? row.systemId : "")) return false;
         if (statusChecked !== null && !statusChecked.has(row.status)) return false;
         if (typeChecked !== null && !typeChecked.has(typeof row.type === "string" ? row.type : "")) return false;
+        if (monthFilter !== "") {
+          const month = monthOf(row.created);
+          // A row the platform does not date is never hidden by the month
+          // filter, so an incomplete payload cannot blank the whole table.
+          if (month !== "" && month !== monthFilter) return false;
+        }
         if (needle === "") return true;
         return String(row.title).toLowerCase().includes(needle) || String(row.id).toLowerCase().includes(needle);
       });
@@ -1465,19 +1502,20 @@ window.__ModuleLoader__.load({
       // Any change to the filters or the sort starts again from the first page.
       react.useEffect(() => {
         setPage(1);
-      }, [tab, needle, statusFilter, typeFilter, systemFilter, pageSize, pointsSort]);
+      }, [tab, needle, statusFilter, typeFilter, systemFilter, monthFilter, pageSize, pointsSort]);
 
       // The filter set survives a reload, so the workbench opens exactly where
       // the user left it.
       react.useEffect(() => {
-        saveFilters({ tab, status: statusFilter, type: typeFilter });
-      }, [tab, statusFilter, typeFilter]);
+        saveFilters({ tab, status: statusFilter, type: typeFilter, month: monthFilter });
+      }, [tab, statusFilter, typeFilter, monthFilter]);
 
-      /** Back to the untouched view: first tab, nothing narrowed, nothing searched. */
+      /** Back to the untouched view: first tab, current month, nothing narrowed. */
       const resetFilters = () => {
         setTab("todo");
         setStatusFilter(null);
         setTypeFilter(null);
+        setMonthFilter(currentMonth());
         setSystemFilter(null);
         saveSystemFilter(null);
         setQuery("");
@@ -1522,14 +1560,33 @@ window.__ModuleLoader__.load({
       const safePage = Math.min(page, pageCount);
       const pageRows = sortedRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
-      // The point total is a global figure: it sums the merged three buckets,
-      // so no filter (system, status, type, search) can change it.
-      const pointSum = merged.reduce((total, row) => {
+      // Every month the loaded work items were created in, newest first; the
+      // selected and the current one stay selectable even when no row falls in
+      // them, otherwise the picker could not show what is on screen.
+      const monthOptions = (() => {
+        const seen = new Set();
+        for (const row of merged) {
+          const month = monthOf(row.created);
+          if (month !== "") seen.add(month);
+        }
+        seen.add(currentMonth());
+        if (monthFilter !== "") seen.add(monthFilter);
+        return Array.from(seen).sort((left, right) => (left < right ? 1 : left > right ? -1 : 0));
+      })();
+
+      // The point total is scoped by the creation month only: it sums the
+      // merged three buckets of that month, so no other filter changes it.
+      const monthRows = monthFilter === ""
+        ? merged
+        : merged.filter((row) => monthOf(row.created) === monthFilter);
+      const pointSum = monthRows.reduce((total, row) => {
         const value = pointOf(row);
         return value === null ? total : total + value;
       }, 0);
-      const pointRows = merged.filter((row) => pointOf(row) !== null).length;
-      const pointHint = merged.length === 0 ? t("tile.pointsNone") : t("tile.pointsHint");
+      const pointRows = monthRows.filter((row) => pointOf(row) !== null).length;
+      const pointHint = monthRows.length === 0
+        ? t("tile.pointsNone")
+        : fill(t("tile.pointsHintMonth"), { month: monthFilter === "" ? t("filter.monthAny") : monthFilter });
       const pointSummary = pointRows === 0 ? "-" : String(Math.round(pointSum * 100) / 100);
 
       const toggleStatus = (value) => {
@@ -1723,6 +1780,18 @@ window.__ModuleLoader__.load({
                 h("span", null, option === "" ? t("filter.typeNone") : option))))
           : null);
 
+      // The creation month is the only filter the task-point tile follows: the
+      // tile sums the work created in the selected month, whatever the table is
+      // narrowed to.
+      const monthPickerNode = h("select", {
+        className: "dt-select",
+        value: monthFilter,
+        "aria-label": t("filter.month"),
+        title: t("filter.month"),
+        onChange: (event) => setMonthFilter(event.target.value),
+      }, [""].concat(monthOptions).map((month) => h("option", { key: month === "" ? "__any" : month, value: month },
+        month === "" ? t("filter.monthAny") : month)));
+
       return h(react.Fragment, null,
         h("div", { className: "dt-tiles" },
           tabs.map((entry) => {
@@ -1776,6 +1845,7 @@ window.__ModuleLoader__.load({
         h("div", { className: "dt-toolbar" },
           statusPickerNode,
           typePickerNode,
+          monthPickerNode,
           systemPicker,
           h("span", { style: { flex: "1 1 auto" } }),
           h("button", {
@@ -1788,7 +1858,7 @@ window.__ModuleLoader__.load({
           snap.loading && data === null ? null : h(react.Fragment, null,
             rows.length === 0
               ? h("div", { className: "dt-empty" },
-                needle === "" && statusFilter === null && typeFilter === null && !systemsActive
+                needle === "" && statusFilter === null && typeFilter === null && monthFilter === "" && !systemsActive
                   ? t("empty." + tab)
                   : t("empty.search"))
               : h("div", { className: "dt-tableWrap" },
@@ -1837,6 +1907,9 @@ window.__ModuleLoader__.load({
       const initial = user.slice(0, 1);
       const sameValue = entry.before === entry.after;
       return h("div", { className: "dt-logRow" },
+        // The "automatic status change" tag leads the row so it reads before the
+        // operator, the way the platform's own log panel shows it.
+        entry.flow === true && sameValue ? h("span", { className: "dt-logTag" }, t("modal.autoFlow")) : null,
         h("span", { className: "dt-logAvatar", title: user }, initial),
         h("div", { className: "dt-logBody" },
           h("div", { className: "dt-logHead" },
@@ -1848,8 +1921,7 @@ window.__ModuleLoader__.load({
             : h("div", { className: "dt-logValues" },
               h("span", { className: "dt-logBefore", title: entry.before }, entry.before === "" ? "-" : entry.before),
               h("span", { className: "dt-logArrow" }, "→"),
-              h("span", { className: "dt-logAfter", title: entry.after }, entry.after === "" ? "-" : entry.after)),
-          entry.flow === true && sameValue ? h("span", { className: "dt-logTag" }, t("modal.autoFlow")) : null));
+              h("span", { className: "dt-logAfter", title: entry.after }, entry.after === "" ? "-" : entry.after))));
     }
 
     /** The detail dialog: grouped fields first, the activity log second. */
