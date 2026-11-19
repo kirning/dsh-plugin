@@ -1,0 +1,35 @@
+{
+  "$comment": "唯一事实来源：一个聚合 bundle 里装了哪些子插件。改完跑 `npm run sync` 重写 package.json 的 dependencies/bundledDependencies 与 cordis.patch.yml；`npm run verify` 校验是否漂移、行名能否解析。",
+  "rows": [
+    {
+      "id": "ui-continue",
+      "package": "dsh-plugin-continue",
+      "dir": "../dsh-plugin-continue"
+    },
+    {
+      "id": "company-quota",
+      "package": "dsh-plugin-company-quota",
+      "dir": "../dsh-quota"
+    },
+    {
+      "id": "easytier",
+      "package": "dsh-easytier",
+      "dir": "../dsh-easytier"
+    },
+    {
+      "id": "dsh-devops-tasks",
+      "package": "dsh-devops-tasks",
+      "dir": "../dsh-devops-tasks"
+    },
+    {
+      "id": "token-calendar",
+      "package": "dsh-token-calendar",
+      "dir": "../token-calendar",
+      "config": {
+        "enabled": true,
+        "announceToAgent": true,
+        "defaultCurrency": "cny"
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "dsh-plugins-all",
+  "version": "1.0.0",
+  "private": true,
+  "description": "DSH Web 插件合集：一个 bundle 装齐「继续 / 公司额度 / EasyTier / 我的工作台 / Token 日历」五个子插件（对齐 @linxin666/dsh-web-all 的聚合范式）",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "cordis.patch.yml",
+    "aggregate.json",
+    "README.md"
+  ],
+  "scripts": {
+    "sync": "node scripts/aggregate.mjs",
+    "verify": "node scripts/verify.mjs",
+    "check": "npm run sync && npm run verify",
+    "bundle": "node scripts/bundle.mjs"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "dsh-plugin-continue": "file:../dsh-plugin-continue",
+    "dsh-plugin-company-quota": "file:../dsh-quota",
+    "dsh-easytier": "file:../dsh-easytier",
+    "dsh-devops-tasks": "file:../dsh-devops-tasks",
+    "dsh-token-calendar": "file:../token-calendar"
+  },
+  "bundledDependencies": [
+    "dsh-plugin-continue",
+    "dsh-plugin-company-quota",
+    "dsh-easytier",
+    "dsh-devops-tasks",
+    "dsh-token-calendar"
+  ]
+}
