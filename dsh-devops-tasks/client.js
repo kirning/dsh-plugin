@@ -200,6 +200,7 @@ window.__ModuleLoader__.load({
       ".dt-chatDialog{width:min(480px,92vw)}",
       ".dt-chatText{width:100%;box-sizing:border-box;min-height:96px;resize:vertical;padding:8px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:1.5}",
       ".dt-btn[data-primary]{border-color:var(--dsw-alias-state-business-primary);color:var(--dsw-alias-state-business-primary)}",
+      ".dt-btn[data-danger]{border-color:var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary)}",
       ".dt-toast{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);z-index:40;max-width:80%;padding:6px 14px;border-radius:999px;border:1px solid var(--dsw-alias-state-error-primary);color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-bg-layer-2);font-size:12px;overflow-wrap:anywhere}",
       ".dt-toast[data-kind=ok]{border-color:var(--dsw-alias-state-success-primary);color:var(--dsw-alias-state-success-primary)}",
     ].join("");
@@ -405,11 +406,16 @@ window.__ModuleLoader__.load({
       "sess.sendFailed": "发送失败：{message}",
       "sess.sessionServiceMissing": "会话服务不可用，请重开工作台后再试",
       // Containers tab.
-      "container.hint": "只读列表：本机 podman 里的全部容器，包含已停止的。",
+      "container.hint": "本机 podman 里的全部容器，包含已停止的；可直接启动或停止。",
       "container.count": "共 {n} 个容器，运行中 {running} 个",
       "container.fetchedAt": "更新于 {time}",
       "container.error": "读取容器失败：{message}",
       "container.empty": "podman 里还没有容器。",
+      "container.start": "启动",
+      "container.stop": "停止",
+      "container.starting": "启动中…",
+      "container.stopping": "停止中…",
+      "container.actionFailed": "操作失败：{message}",
       "container.state.running": "运行中",
       "container.state.paused": "已暂停",
       "container.state.exited": "已停止",
@@ -421,6 +427,7 @@ window.__ModuleLoader__.load({
       "col.state": "状态",
       "col.ports": "端口",
       "col.created": "创建时间",
+      "col.actions": "操作",
     };
 
     const en = {
@@ -606,11 +613,16 @@ window.__ModuleLoader__.load({
       "sess.sendFailed": "Send failed: {message}",
       "sess.sessionServiceMissing": "Session service unavailable — reopen the workbench and retry",
       // Containers tab.
-      "container.hint": "Read-only list of every podman container on this machine, stopped ones included.",
+      "container.hint": "Every podman container on this machine, stopped ones included. Start or stop them right here.",
       "container.count": "{n} containers, {running} running",
       "container.fetchedAt": "Updated {time}",
       "container.error": "Could not read containers: {message}",
       "container.empty": "No containers in podman yet.",
+      "container.start": "Start",
+      "container.stop": "Stop",
+      "container.starting": "Starting…",
+      "container.stopping": "Stopping…",
+      "container.actionFailed": "Action failed: {message}",
       "container.state.running": "Running",
       "container.state.paused": "Paused",
       "container.state.exited": "Stopped",
@@ -622,6 +634,7 @@ window.__ModuleLoader__.load({
       "col.state": "State",
       "col.ports": "Ports",
       "col.created": "Created",
+      "col.actions": "Actions",
     };
     // #endregion
 
@@ -678,6 +691,25 @@ window.__ModuleLoader__.load({
       /** The local podman containers the 容器管理 tab lists. */
       containers() {
         return this.request("/containers");
+      }
+
+      /** Start one container by short id. */
+      startContainer(id) {
+        return this.action("/containers/start", id);
+      }
+
+      /** Stop one container by short id. */
+      stopContainer(id) {
+        return this.action("/containers/stop", id);
+      }
+
+      /** POST one container reference to a lifecycle route. */
+      async action(path, id) {
+        return readJson(await fetch(API + path, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ id }),
+        }));
       }
     }
     // #endregion
@@ -2845,9 +2877,16 @@ window.__ModuleLoader__.load({
       return typeof row.createdText === "string" ? row.createdText : "";
     }
 
+    /** Which lifecycle verb a row offers: stop what runs, start what does not. */
+    function containerActionOf(row) {
+      const state = typeof row.state === "string" ? row.state : "";
+      return state === "running" || state === "paused" || state === "restarting" ? "stop" : "start";
+    }
+
     /**
-     * The 「容器管理」 tab: a read-only table of the local podman containers.
-     * The host runs the listing, so the tab only refreshes it on demand.
+     * The 「容器管理」 tab: the local podman containers, each row carrying the
+     * one lifecycle button its state allows. The host runs podman, so a
+     * successful action is followed by a fresh listing.
      */
     function ContainersView(props) {
       const t = props.t;
@@ -2856,6 +2895,8 @@ window.__ModuleLoader__.load({
       const [loading, setLoading] = react.useState(false);
       const [error, setError] = react.useState("");
       const [fetchedAt, setFetchedAt] = react.useState("");
+      const [busy, setBusy] = react.useState("");
+      const [actionError, setActionError] = react.useState("");
 
       const load = () => {
         setLoading(true);
@@ -2875,6 +2916,21 @@ window.__ModuleLoader__.load({
       react.useEffect(() => {
         load();
       }, []);
+
+      const act = (row, action) => {
+        if (busy !== "") return;
+        setBusy(row.id);
+        setActionError("");
+        const call = action === "stop" ? api.stopContainer(row.id) : api.startContainer(row.id);
+        call
+          .then(() => {
+            load();
+          })
+          .catch((failure) => {
+            setActionError(reasonOf(failure));
+          })
+          .then(() => setBusy(""));
+      };
 
       const list = rows === null ? [] : rows;
       const running = list.filter((row) => row.state === "running").length;
@@ -2909,6 +2965,26 @@ window.__ModuleLoader__.load({
             return text === "" ? h("span", { className: "dt-muted" }, "-") : h("span", { title: row.status }, text);
           },
         },
+        {
+          key: "actions",
+          label: t("col.actions"),
+          render: (row) => {
+            const action = containerActionOf(row);
+            const working = busy === row.id;
+            const label = working
+              ? t(action === "stop" ? "container.stopping" : "container.starting")
+              : t(action === "stop" ? "container.stop" : "container.start");
+            return h("button", {
+              type: "button",
+              className: "dt-btn",
+              "data-primary": action === "start" ? "" : undefined,
+              "data-danger": action === "stop" ? "" : undefined,
+              "aria-label": label + " " + row.name,
+              disabled: busy !== "",
+              onClick: () => act(row, action),
+            }, label);
+          },
+        },
       ];
 
       return h("div", { className: "dt-body" },
@@ -2921,6 +2997,7 @@ window.__ModuleLoader__.load({
           h("button", { type: "button", className: "dt-btn", disabled: loading, onClick: load }, t("common.refresh"))),
 
         error === "" ? null : h("div", { className: "dt-empty" }, fill(t("container.error"), { message: error })),
+        actionError === "" ? null : h("div", { className: "dt-notice", "data-kind": "error" }, fill(t("container.actionFailed"), { message: actionError })),
 
         rows === null
           ? (loading ? h("div", { className: "dt-empty" }, t("common.loading")) : null)

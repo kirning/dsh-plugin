@@ -1,9 +1,9 @@
 {
   "name": "dsh-devops-tasks",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "type": "module",
-  "description": "My workbench for DSH Web: session cards (status, note, chat, locate), a DevOps work-item board with filters, and a read-only podman container list.",
+  "description": "My workbench for DSH Web: session cards (status, note, chat, locate), a DevOps work-item board with filters, and a podman container list with start/stop.",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },

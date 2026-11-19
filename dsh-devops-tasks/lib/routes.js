@@ -3,10 +3,11 @@
  *
  * The endpoints: `/snapshot` (the three buckets plus their counts), `/health`
  * (whether the DevOps MCP endpoint could be found and reached), `/item-detail`
- * and `/item-log` (one work item's detail and activity log), and `/containers`
- * (the podman containers the 「容器管理」 tab lists). The PANEL never talks to
- * the DevOps server itself — the PAT lives in the MCP URL and must stay in the
- * host process, so this is the only door.
+ * and `/item-log` (one work item's detail and activity log), `/containers`
+ * (the podman containers the 「容器管理」 tab lists) and `/containers/start` /
+ * `/containers/stop` (that tab's two lifecycle buttons). The PANEL never talks
+ * to the DevOps server itself — the PAT lives in the MCP URL and must stay in
+ * the host process, so this is the only door.
  *
  * Every request is fenced to loopback plus same-origin browser markers: a
  * shared or LAN-exposed `dsh web` must not serve one person's task list to
@@ -17,7 +18,7 @@
 
 import { McpHttpClient, debugLog, discoverEndpoint } from './mcp.js'
 import { DevopsService } from './devops.js'
-import { listContainers } from './containers.js'
+import { isContainerReference, listContainers, startContainer, stopContainer } from './containers.js'
 
 /** Route prefix owned by this plugin. */
 export const API_PREFIX = '/api/dsh-devops-tasks'
@@ -130,7 +131,17 @@ export function createRoutes(deps = {}) {
     }
     const route = url.pathname.startsWith(API_PREFIX) ? url.pathname.slice(API_PREFIX.length) || '/' : url.pathname
     const method = (request.method ?? 'GET').toUpperCase()
-    if (method !== 'GET' && method !== 'HEAD') {
+    // The only mutating routes this plugin owns: the 「容器管理」 start/stop
+    // buttons. Everything else stays read-only, so an accidental POST cannot
+    // change anything.
+    const lifecycle = route === '/containers/start' ? startContainer
+      : route === '/containers/stop' ? stopContainer
+        : null
+    if (lifecycle === null && method !== 'GET' && method !== 'HEAD') {
+      writeJson(response, 405, { error: 'method not allowed' })
+      return
+    }
+    if (lifecycle !== null && method !== 'POST') {
       writeJson(response, 405, { error: 'method not allowed' })
       return
     }
@@ -245,9 +256,33 @@ export function createRoutes(deps = {}) {
       return
     }
 
+    if (lifecycle !== null) {
+      let payload
+      try {
+        payload = await readJsonBody(request)
+      } catch (error) {
+        writeJson(response, 400, { error: messageOf(error) })
+        return
+      }
+      const reference = typeof payload.id === 'string' ? payload.id.trim() : ''
+      if (!isContainerReference(reference)) {
+        writeJson(response, 400, { error: 'bad container id' })
+        return
+      }
+      try {
+        const result = await lifecycle(reference, {
+          podmanPath: typeof config.podmanPath === 'string' ? config.podmanPath : undefined,
+        })
+        writeJson(response, 200, result)
+      } catch (error) {
+        writeJson(response, 502, { error: messageOf(error) })
+      }
+      return
+    }
+
     if (route === '/containers') {
-      // Read-only by design: the tab lists what the engine holds, and no
-      // lifecycle command is ever run from a browser request.
+      // Listing is read-only; the two lifecycle routes above are the only ways
+      // a browser can change engine state, and each takes one narrow id.
       try {
         const listed = await listContainers({
           podmanPath: typeof config.podmanPath === 'string' ? config.podmanPath : undefined,
@@ -289,4 +324,42 @@ export function makeRoute(deps = {}) {
 /** Error text without leaking the endpoint. */
 function messageOf(error) {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** Largest JSON body accepted from the panel (one container id). */
+const MAX_BODY_BYTES = 8 * 1024
+
+/**
+ * Read and parse a small JSON request body.
+ * @param {import('node:http').IncomingMessage} request - inbound request.
+ * @returns {Promise<Record<string, unknown>>} the parsed object, `{}` when empty.
+ */
+function readJsonBody(request) {
+  return new Promise((resolve, reject) => {
+    const chunks = []
+    let size = 0
+    request.on('data', chunk => {
+      size += chunk.length
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error('请求体过大'))
+        request.destroy()
+        return
+      }
+      chunks.push(chunk)
+    })
+    request.on('error', error => reject(error))
+    request.on('end', () => {
+      const text = Buffer.concat(chunks).toString('utf8').trim()
+      if (text === '') {
+        resolve({})
+        return
+      }
+      try {
+        const parsed = JSON.parse(text)
+        resolve(parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {})
+      } catch {
+        reject(new Error('请求体不是合法 JSON'))
+      }
+    })
+  })
 }
