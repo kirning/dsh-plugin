@@ -39,7 +39,8 @@ dsh-devops-tasks/
 ├── client.js           # 浏览器半：sidebar.panellist 入口 + main 面板（手写 CJS 工厂，无构建）
 ├── lib/mcp.js          # 极简 MCP Streamable-HTTP JSON-RPC 客户端 + 端点发现
 ├── lib/devops.js       # 取数：三个桶的 scene、字段归一化、去重、排序、缓存
-├── lib/routes.js       # /health、/snapshot（stale-while-revalidate）
+├── lib/containers.js   # podman 容器只读列表（跑 podman ps --all --format json 并归一化）
+├── lib/routes.js       # /health、/snapshot（stale-while-revalidate）、/item-*、/containers
 ├── cordis.patch.yml    # 自动挂载行
 └── package.json
 ```
@@ -50,6 +51,9 @@ dsh-devops-tasks/
 |---|---|
 | `GET /api/dsh-devops-tasks/health` | 只读本地状态：`server`、脱敏后的 `endpoint`、`source`（发现到端点的文件）。加 `?probe=1` 才会真打平台列系统 |
 | `GET /api/dsh-devops-tasks/snapshot` | 完整快照：`counts`、`tabs.todo/review/created`（`items/total/truncated/partial`）、`warnings`、`fetchedAt`、`stale`。加 `?force=1` 强制回源 |
+| `GET /api/dsh-devops-tasks/item-detail?id=&systemId=` | 一条工作项的详情（按 `basic/people/plan/desc` 分组），平台响应是信封，`fieldList` 在 `body` 下一层 |
+| `GET /api/dsh-devops-tasks/item-log?id=&page=&size=` | 一条工作项的活动日志（`/agile-service/opera/list/{id}/1`，`size` 上限 100） |
+| `GET /api/dsh-devops-tasks/containers` | 本机 podman 容器只读列表：`containers`（`name/state/status/image/ports/created/createdText/networks/pod/id`）、`count`、`fetchedAt` |
 
 两个接口都只接受**本机回环**请求（socket + Host 双校验），浏览器半靠同源 fetch 访问。
 
@@ -120,6 +124,19 @@ DevSecOps 的 MCP 通道冷启动很慢（实测首次 `initialize` + `tools/lis
 状态映射与 DSH 侧边栏一致：`pendingInteraction.kind` 为 `approval`/`plan-review`/`question` 时算「待回答」类，
 否则 `running` 算「执行任务中」，`completionUnread` 算「执行完成」，其余「没有任务」。
 子代理会话（`origin === "subagent"`）与已归档会话不在卡片里出现。
+
+## 容器管理（容器管理页签）
+
+面板第三个页签，**只读**：列出本机 podman 的全部容器（含已停止），列是
+容器名称 / 状态 / 镜像 / 端口 / 创建时间，右上角有刷新按钮，不提供启停或删除。
+
+- 取数在宿主进程跑 `podman ps --all --format json`（`lib/containers.js`），
+  浏览器永远不直接碰容器引擎，`/api/dsh-devops-tasks/containers` 是唯一入口。
+- podman 可执行文件解析顺序：插件配置 `podmanPath` → 环境变量 `DSH_PODMAN_BIN` →
+  `%LOCALAPPDATA%\Programs\Podman\podman.exe` → `/usr/bin/podman`、`/usr/local/bin/podman` → PATH 里的 `podman`。
+- 归一化：`Ports` 拼成 `0.0.0.0:8080->80/tcp`；`Created`（epoch 秒）转毫秒由面板格式化为 `YYYY-MM-DD HH:mm`；
+  排序为「运行中在前，其余按创建时间倒序」。
+- 时间戳字段缺失时退回 podman 自己的相对时间（`9 days ago`），不会显示空值。
 
 ## 安装 / 卸载
 

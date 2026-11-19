@@ -81,6 +81,16 @@ window.__ModuleLoader__.load({
       ".dt-titleBtn{display:block;width:100%;background:none;border:none;margin:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;overflow-wrap:anywhere}",
       ".dt-titleBtn:hover{color:var(--dsw-alias-state-business-primary);text-decoration:underline}",
       ".dt-person{display:inline-block;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}",
+      // The containers tab: a state dot in front of the state word, names and
+      // ports in a monospace face so addresses line up.
+      ".dt-cstate{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}",
+      ".dt-cstate::before{content:'';flex:none;width:7px;height:7px;border-radius:50%;background:var(--dsw-alias-label-tertiary)}",
+      ".dt-cstate[data-state=running]::before{background:var(--dsw-alias-state-success-primary)}",
+      ".dt-cstate[data-state=paused]::before{background:var(--dsw-alias-state-warn-primary)}",
+      ".dt-cstate[data-state=restarting]::before{background:var(--dsw-alias-state-warn-primary)}",
+      ".dt-cstate[data-state=dead]::before{background:var(--dsw-alias-state-error-primary)}",
+      ".dt-mono{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px}",
+      ".dt-cports{display:inline-block;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}",
       // The detail dialog: two tabs over one scrollable body.
       ".dt-modalMask{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(0,0,0,.42)}",
       ".dt-modal{display:flex;flex-direction:column;width:min(880px,94vw);max-height:min(84vh,760px);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);box-shadow:0 20px 60px rgba(0,0,0,.38);overflow:hidden}",
@@ -217,6 +227,7 @@ window.__ModuleLoader__.load({
       "panel.back": "返回对话",
       "tab.sessions": "会话管理",
       "tab.devops": "Devops 管理",
+      "tab.containers": "容器管理",
       "common.loading": "加载中…",
       "common.refresh": "刷新",
       "common.search": "搜索编号或标题",
@@ -393,6 +404,23 @@ window.__ModuleLoader__.load({
       "sess.sent": "已发送",
       "sess.sendFailed": "发送失败：{message}",
       "sess.sessionServiceMissing": "会话服务不可用，请重开工作台后再试",
+      // Containers tab.
+      "container.hint": "只读列表：本机 podman 里的全部容器，包含已停止的。",
+      "container.count": "共 {n} 个容器，运行中 {running} 个",
+      "container.fetchedAt": "更新于 {time}",
+      "container.error": "读取容器失败：{message}",
+      "container.empty": "podman 里还没有容器。",
+      "container.state.running": "运行中",
+      "container.state.paused": "已暂停",
+      "container.state.exited": "已停止",
+      "container.state.created": "已创建",
+      "container.state.restarting": "重启中",
+      "container.state.dead": "异常",
+      "col.name": "容器名称",
+      "col.image": "镜像",
+      "col.state": "状态",
+      "col.ports": "端口",
+      "col.created": "创建时间",
     };
 
     const en = {
@@ -401,6 +429,7 @@ window.__ModuleLoader__.load({
       "panel.back": "Back to chat",
       "tab.sessions": "Sessions",
       "tab.devops": "Devops",
+      "tab.containers": "Containers",
       "common.loading": "Loading…",
       "common.refresh": "Refresh",
       "common.search": "Search id or title",
@@ -576,6 +605,23 @@ window.__ModuleLoader__.load({
       "sess.sent": "Sent",
       "sess.sendFailed": "Send failed: {message}",
       "sess.sessionServiceMissing": "Session service unavailable — reopen the workbench and retry",
+      // Containers tab.
+      "container.hint": "Read-only list of every podman container on this machine, stopped ones included.",
+      "container.count": "{n} containers, {running} running",
+      "container.fetchedAt": "Updated {time}",
+      "container.error": "Could not read containers: {message}",
+      "container.empty": "No containers in podman yet.",
+      "container.state.running": "Running",
+      "container.state.paused": "Paused",
+      "container.state.exited": "Stopped",
+      "container.state.created": "Created",
+      "container.state.restarting": "Restarting",
+      "container.state.dead": "Dead",
+      "col.name": "Container",
+      "col.image": "Image",
+      "col.state": "State",
+      "col.ports": "Ports",
+      "col.created": "Created",
     };
     // #endregion
 
@@ -627,6 +673,11 @@ window.__ModuleLoader__.load({
 
       health() {
         return this.request("/health");
+      }
+
+      /** The local podman containers the 容器管理 tab lists. */
+      containers() {
+        return this.request("/containers");
       }
     }
     // #endregion
@@ -2771,13 +2822,125 @@ window.__ModuleLoader__.load({
     }
     // #endregion
 
-    /** The panel root: header plus the two tabs. */
+    /** Container states that have their own dictionary word. */
+    const CONTAINER_STATES = ["running", "paused", "exited", "created", "restarting", "dead"];
+
+    /** Localised state word, falling back to what podman printed. */
+    function containerStateText(t, row) {
+      const state = typeof row.state === "string" ? row.state : "";
+      if (CONTAINER_STATES.includes(state)) return t("container.state." + state);
+      return state === "" ? "-" : state;
+    }
+
+    /** `YYYY-MM-DD HH:mm` from the row's creation timestamp. */
+    function createdTextOf(row) {
+      if (typeof row.created === "number" && row.created > 0) {
+        const date = new Date(row.created);
+        if (!Number.isNaN(date.getTime())) {
+          const pad = (value) => String(value).padStart(2, "0");
+          return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate())
+            + " " + pad(date.getHours()) + ":" + pad(date.getMinutes());
+        }
+      }
+      return typeof row.createdText === "string" ? row.createdText : "";
+    }
+
+    /**
+     * The 「容器管理」 tab: a read-only table of the local podman containers.
+     * The host runs the listing, so the tab only refreshes it on demand.
+     */
+    function ContainersView(props) {
+      const t = props.t;
+      const api = props.api;
+      const [rows, setRows] = react.useState(null);
+      const [loading, setLoading] = react.useState(false);
+      const [error, setError] = react.useState("");
+      const [fetchedAt, setFetchedAt] = react.useState("");
+
+      const load = () => {
+        setLoading(true);
+        setError("");
+        api.containers()
+          .then((payload) => {
+            setRows(Array.isArray(payload.containers) ? payload.containers : []);
+            setFetchedAt(typeof payload.fetchedAt === "string" ? payload.fetchedAt : "");
+          })
+          .catch((failure) => {
+            setError(reasonOf(failure));
+            setRows((prev) => (prev === null ? [] : prev));
+          })
+          .then(() => setLoading(false));
+      };
+
+      react.useEffect(() => {
+        load();
+      }, []);
+
+      const list = rows === null ? [] : rows;
+      const running = list.filter((row) => row.state === "running").length;
+      const columns = [
+        {
+          key: "name",
+          label: t("col.name"),
+          render: (row) => h("span", { className: "dt-mono", title: row.id }, row.name),
+        },
+        {
+          key: "state",
+          label: t("col.state"),
+          render: (row) => h("span", { className: "dt-cstate", "data-state": row.state, title: row.status }, containerStateText(t, row)),
+        },
+        {
+          key: "image",
+          label: t("col.image"),
+          render: (row) => h("span", { className: "dt-mono", title: row.image }, row.image),
+        },
+        {
+          key: "ports",
+          label: t("col.ports"),
+          render: (row) => row.ports === ""
+            ? h("span", { className: "dt-muted" }, "-")
+            : h("span", { className: "dt-mono dt-cports", title: row.ports }, row.ports),
+        },
+        {
+          key: "created",
+          label: t("col.created"),
+          render: (row) => {
+            const text = createdTextOf(row);
+            return text === "" ? h("span", { className: "dt-muted" }, "-") : h("span", { title: row.status }, text);
+          },
+        },
+      ];
+
+      return h("div", { className: "dt-body" },
+        h("div", { className: "dt-toolbar" },
+          h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, t("container.hint")),
+          h("span", { className: "dt-spacer" }),
+          list.length === 0 ? null : h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, fill(t("container.count"), { n: list.length, running })),
+          fetchedAt === "" ? null : h("span", { className: "dt-muted", style: { fontSize: "11.5px" } }, fill(t("container.fetchedAt"), { time: clockOf(fetchedAt) })),
+          loading ? h("span", { className: "dt-spinner", role: "status", "aria-label": t("common.loading") }) : null,
+          h("button", { type: "button", className: "dt-btn", disabled: loading, onClick: load }, t("common.refresh"))),
+
+        error === "" ? null : h("div", { className: "dt-empty" }, fill(t("container.error"), { message: error })),
+
+        rows === null
+          ? (loading ? h("div", { className: "dt-empty" }, t("common.loading")) : null)
+          : (list.length === 0 && error === "" ? h("div", { className: "dt-empty" }, t("container.empty")) : null),
+
+        list.length === 0 ? null : h("div", { className: "dt-tableWrap" },
+          h("table", { className: "dt-table" },
+            h("thead", null, h("tr", null, columns.map((column) => h("th", { key: column.key }, column.label)))),
+            h("tbody", null, list.map((row) => h("tr", { key: row.id === "" ? row.name : row.id },
+              columns.map((column) => h("td", { key: column.key }, column.render(row)))))))));
+    }
+
+    /** The panel root: header plus the tabs. */
     function Panel(props) {
       const t = props.t;
       const [tab, setTab] = react.useState("sessions");
       const tabs = [
         { id: "sessions", label: t("tab.sessions") },
         { id: "devops", label: t("tab.devops") },
+        { id: "containers", label: t("tab.containers") },
       ];
       return h("div", { className: "dt-panel" },
         h("div", { className: "dt-header" },
@@ -2801,7 +2964,9 @@ window.__ModuleLoader__.load({
             workspaces: props.workspaces,
             ops: props.ops,
           })
-          : h(DevopsView, { t, api: props.api }));
+          : (tab === "containers"
+            ? h(ContainersView, { t, api: props.api })
+            : h(DevopsView, { t, api: props.api })));
     }
 
     /** Register the sidebar entry and the panel it opens. */

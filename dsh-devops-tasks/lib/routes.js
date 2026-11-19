@@ -1,10 +1,12 @@
 /**
  * The `/api/dsh-devops-tasks` route family the panel calls.
  *
- * Two endpoints: `/snapshot` (the three buckets plus their counts) and
- * `/health` (whether the DevOps MCP endpoint could be found and reached). The
- * PANEL never talks to the DevOps server itself — the PAT lives in the MCP URL
- * and must stay in the host process, so this is the only door.
+ * The endpoints: `/snapshot` (the three buckets plus their counts), `/health`
+ * (whether the DevOps MCP endpoint could be found and reached), `/item-detail`
+ * and `/item-log` (one work item's detail and activity log), and `/containers`
+ * (the podman containers the 「容器管理」 tab lists). The PANEL never talks to
+ * the DevOps server itself — the PAT lives in the MCP URL and must stay in the
+ * host process, so this is the only door.
  *
  * Every request is fenced to loopback plus same-origin browser markers: a
  * shared or LAN-exposed `dsh web` must not serve one person's task list to
@@ -15,6 +17,7 @@
 
 import { McpHttpClient, debugLog, discoverEndpoint } from './mcp.js'
 import { DevopsService } from './devops.js'
+import { listContainers } from './containers.js'
 
 /** Route prefix owned by this plugin. */
 export const API_PREFIX = '/api/dsh-devops-tasks'
@@ -236,6 +239,20 @@ export function createRoutes(deps = {}) {
         const size = Math.min(100, Math.max(1, Number(url.searchParams.get('size') ?? '50') || 50))
         const log = await service.itemLog(id, page, size)
         writeJson(response, 200, { ...log, page, size })
+      } catch (error) {
+        writeJson(response, 502, { error: messageOf(error) })
+      }
+      return
+    }
+
+    if (route === '/containers') {
+      // Read-only by design: the tab lists what the engine holds, and no
+      // lifecycle command is ever run from a browser request.
+      try {
+        const listed = await listContainers({
+          podmanPath: typeof config.podmanPath === 'string' ? config.podmanPath : undefined,
+        })
+        writeJson(response, 200, { ...listed, count: listed.containers.length })
       } catch (error) {
         writeJson(response, 502, { error: messageOf(error) })
       }
