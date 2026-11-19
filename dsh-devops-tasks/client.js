@@ -155,7 +155,9 @@ window.__ModuleLoader__.load({
       ".dt-noteInput{width:100%;box-sizing:border-box;resize:vertical;min-height:44px;padding:4px 6px;border:1px solid var(--dsw-alias-state-business-primary);border-radius:6px;background:var(--dsw-specific-input-major);color:var(--dsw-alias-label-primary);font-family:inherit;font-size:12px;line-height:1.5;outline:none}",
       ".dt-cardMeta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
       // Card anatomy: top (status + title + pin), middle (note + figures), bottom.
-      ".dt-cardFigs{display:flex;align-items:center;gap:6px;margin-top:auto;padding-left:16px;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
+      // The figures sit at the bottom-left of the card's middle band, so they
+      // line up with the title and note above them instead of floating inward.
+      ".dt-cardFigs{display:flex;align-items:center;gap:6px;margin-top:auto;padding-left:0;font-size:11px;color:var(--dsw-alias-label-tertiary);min-width:0;white-space:nowrap;overflow:hidden}",
       ".dt-cardMid{display:flex;flex-direction:column;gap:4px;flex:1 1 auto;min-height:0}",
       ".dt-cardBottom{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:2px;min-width:0;font-size:11px;color:var(--dsw-alias-label-tertiary)}",
       ".dt-card[data-highlight]{border-color:var(--dsw-alias-state-business-primary);box-shadow:0 0 0 1px var(--dsw-alias-state-business-primary)}",
@@ -390,6 +392,7 @@ window.__ModuleLoader__.load({
       "sess.sending": "发送中…",
       "sess.sent": "已发送",
       "sess.sendFailed": "发送失败：{message}",
+      "sess.sessionServiceMissing": "会话服务不可用，请重开工作台后再试",
     };
 
     const en = {
@@ -572,6 +575,7 @@ window.__ModuleLoader__.load({
       "sess.sending": "Sending…",
       "sess.sent": "Sent",
       "sess.sendFailed": "Send failed: {message}",
+      "sess.sessionServiceMissing": "Session service unavailable — reopen the workbench and retry",
     };
     // #endregion
 
@@ -937,6 +941,78 @@ window.__ModuleLoader__.load({
     }
     // #endregion
 
+    // #region session figures cache
+    /**
+     * Turns and tokens are projections: reading them costs one round trip to
+     * the session controller, while the numbers themselves only move when the
+     * session moves. The reading is therefore kept against the session's
+     * `updatedAt` stamp — an unchanged session paints straight from the cache,
+     * and only a session that actually ran is asked again.
+     */
+    const STATS_STORE = "dsh-devops-tasks:stats";
+    let statsCache = null;
+    let statsSaveTimer = null;
+
+    /** The cached `{ id: { u, turns, tokens } }` map, read from storage once. */
+    function statsCacheMap() {
+      if (statsCache !== null) return statsCache;
+      statsCache = {};
+      try {
+        const raw = window.localStorage.getItem(STATS_STORE);
+        const parsed = raw === null ? null : JSON.parse(raw);
+        if (parsed !== null && typeof parsed === "object") {
+          for (const id of Object.keys(parsed)) {
+            const entry = parsed[id];
+            if (entry === null || typeof entry !== "object" || typeof entry.u !== "number") continue;
+            statsCache[id] = {
+              u: entry.u,
+              turns: typeof entry.turns === "number" ? entry.turns : null,
+              tokens: typeof entry.tokens === "number" ? entry.tokens : null,
+            };
+          }
+        }
+      } catch {
+        /* a broken cache only costs one extra reading */
+      }
+      return statsCache;
+    }
+
+    /** Persist the cache a beat later, so a burst of cards writes once. */
+    function scheduleStatsSave() {
+      if (typeof window === "undefined" || statsSaveTimer !== null) return;
+      statsSaveTimer = setTimeout(() => {
+        statsSaveTimer = null;
+        try {
+          window.localStorage.setItem(STATS_STORE, JSON.stringify(statsCacheMap()));
+        } catch {
+          /* storage pressure only loses the cache */
+        }
+      }, 500);
+    }
+
+    /** The reading stored for this exact session state, or null when stale. */
+    function cachedStats(sessionId, updatedAt) {
+      const entry = statsCacheMap()[sessionId];
+      if (entry === undefined || entry.u !== updatedAt) return null;
+      return entry;
+    }
+
+    /** Remember one reading; a session that ran again overwrites the old one. */
+    function rememberStats(sessionId, updatedAt, turns, tokens) {
+      if (sessionId === "" || (turns === null && tokens === null)) return;
+      const map = statsCacheMap();
+      const entry = map[sessionId];
+      if (entry !== undefined && entry.u === updatedAt && entry.turns === turns && entry.tokens === tokens) return;
+      map[sessionId] = { u: updatedAt, turns, tokens };
+      const ids = Object.keys(map);
+      // Sessions come and go; keeping the newest few hundred is plenty.
+      if (ids.length > 600) {
+        for (const id of ids.slice(0, ids.length - 600)) delete map[id];
+      }
+      scheduleStatsSave();
+    }
+    // #endregion
+
     /** Compact token figure: 12800 → "12.8k". */
     function tokenText(value) {
       if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return "";
@@ -1105,6 +1181,13 @@ window.__ModuleLoader__.load({
           ? projection.values
           : (summary.projectionValues !== null && summary.projectionValues !== undefined ? summary.projectionValues : {});
         const stats = values.sessionStats;
+        const updatedAt = typeof summary.updatedAt === "number" ? summary.updatedAt : 0;
+        const liveTurns = stats !== null && stats !== undefined && typeof stats.turns === "number" ? stats.turns : null;
+        const liveTokens = tokensOf(values.tokenUsage);
+        // A session that has not moved since the last reading keeps its numbers
+        // without asking the controller again.
+        const cached = liveTurns === null && liveTokens === null ? cachedStats(id, updatedAt) : null;
+        if (liveTurns !== null || liveTokens !== null) rememberStats(id, updatedAt, liveTurns, liveTokens);
         rows.push({
           id,
           title: rawTitle,
@@ -1114,11 +1197,11 @@ window.__ModuleLoader__.load({
           status: statusOf(t, status),
           pinned: pinned.has(id),
           rank: pinnedIndex,
-          updatedAt: typeof summary.updatedAt === "number" ? summary.updatedAt : 0,
+          updatedAt,
           current: summary.retainedBy !== undefined && summary.retainedBy !== null && (summary.retainedBy.mainView ?? 0) > 0,
           running: (status !== undefined && status.running === true) || summary.running === true,
-          turns: stats !== null && stats !== undefined && typeof stats.turns === "number" ? stats.turns : null,
-          tokens: tokensOf(values.tokenUsage),
+          turns: liveTurns !== null ? liveTurns : (cached === null ? null : cached.turns),
+          tokens: liveTokens !== null ? liveTokens : (cached === null ? null : cached.tokens),
           note: noteOf(id),
         });
       }
@@ -2402,6 +2485,8 @@ window.__ModuleLoader__.load({
       const [renaming, setRenaming] = react.useState(null);
       const [archiving, setArchiving] = react.useState(null);
       const [chatting, setChatting] = react.useState(null);
+      const [page, setPage] = react.useState(1);
+      const [pageSize, setPageSize] = react.useState(20);
       const [toast, setToast] = react.useState(null);
       // Workspaces chosen in the highlight picker get a border on their cards.
       const [highlight, setHighlight] = react.useState([]);
@@ -2512,6 +2597,17 @@ window.__ModuleLoader__.load({
           || (row.note !== "" && row.note.toLowerCase().includes(needle));
       });
 
+      // Cards are paged in the view only; `visible` stays the whole filter result
+      // so the footer can still report the true count.
+      const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
+      const safePage = Math.min(page, pageCount);
+      const pageRows = visible.slice((safePage - 1) * pageSize, safePage * pageSize);
+
+      // A new filter, search or page size rebases the list at its first page.
+      react.useEffect(() => {
+        setPage(1);
+      }, [filter, query, pageSize]);
+
       // Turns and tokens are projections, which the session summary excludes.
       // Ask the session controller for them lazily, a few cards at a time; the
       // store then re-renders with the figures filled in.
@@ -2519,7 +2615,7 @@ window.__ModuleLoader__.load({
         const service = props.sessions;
         if (service === null || service === undefined || typeof service.refreshProjections !== "function") return;
         const pending = visible
-          .filter((row) => row.turns === null && !requested.current.has(row.id))
+          .filter((row) => row.turns === null && row.tokens === null && !requested.current.has(row.id))
           .slice(0, 120);
         if (pending.length === 0) return;
         for (const row of pending) requested.current.add(row.id);
@@ -2603,7 +2699,7 @@ window.__ModuleLoader__.load({
           visible.length === 0
             ? h("div", { className: "dt-empty" }, rows.length === 0 ? t("sess.empty") : t("sess.emptyFilter"))
             : h("div", { className: "dt-cards" },
-              visible.map((row) => h(SessionCard, {
+              pageRows.map((row) => h(SessionCard, {
                 key: row.id,
                 t,
                 row,
@@ -2619,8 +2715,22 @@ window.__ModuleLoader__.load({
               }))),
           h("div", {
             className: "dt-footer",
+            style: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" },
             "data-archived": String(workspaces !== null && workspaces !== undefined && Array.isArray(workspaces.archivedSessionIds) ? workspaces.archivedSessionIds.length : 0),
-          }, fill(t("sess.count"), { n: visible.length }))),
+          },
+            h("span", null, fill(t("sess.count"), { n: visible.length })),
+            h("span", { style: { flex: "1 1 auto" } }),
+            visible.length === 0 ? null : h("div", { className: "dt-pager" },
+              h("select", {
+                className: "dt-select",
+                value: String(pageSize),
+                "aria-label": t("pager.size"),
+                title: t("pager.size"),
+                onChange: (event) => setPageSize(Number(event.target.value)),
+              }, [20, 50, 100].map((size) => h("option", { key: size, value: String(size) }, fill(t("pager.sizeOption"), { n: size })))),
+              h("button", { type: "button", className: "dt-btn", disabled: safePage <= 1, onClick: () => setPage(safePage - 1) }, t("pager.prev")),
+              h("span", null, fill(t("pager.info"), { page: safePage, pages: pageCount, n: visible.length })),
+              h("button", { type: "button", className: "dt-btn", disabled: safePage >= pageCount, onClick: () => setPage(safePage + 1) }, t("pager.next"))))),
 
         renaming === null ? null : h(RenameDialog, {
           t,
@@ -2713,6 +2823,25 @@ window.__ModuleLoader__.load({
       };
       const uiWorkspace = service("uiWorkspace");
       const remote = ctx.remote;
+      // Every remote namespace is also its own service (`remote.session`), and a
+      // cordis value is only reachable once its name is injected. Read it by the
+      // injected name, with the facade property as the fallback, so a missing
+      // binding reports itself instead of silently doing nothing.
+      const sessionRemote = () => {
+        try {
+          const direct = ctx.get("remote.session");
+          if (direct !== undefined && direct !== null) return direct;
+        } catch {
+          /* fall through to the facade */
+        }
+        try {
+          const facade = remote !== null && remote !== undefined ? remote.session : undefined;
+          if (facade !== undefined && facade !== null) return facade;
+        } catch {
+          /* fall through to the error */
+        }
+        throw new Error(t("sess.sessionServiceMissing"));
+      };
       const ops = {
         open(sessionId) {
           // The platform refuses to reopen archived sessions; so do we, instead
@@ -2728,11 +2857,18 @@ window.__ModuleLoader__.load({
           const requestId = typeof crypto !== "undefined" && crypto !== null && typeof crypto.randomUUID === "function"
             ? crypto.randomUUID()
             : "dt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
-          return remote.session.prompt({
-            requestId,
-            sessionId,
-            mode: "queue",
-            content: [{ type: "text", text }],
+          // `remote.session` is its own service (`remote.<namespace>`), so it is
+          // resolved like every other service: through the injected name first,
+          // then through the remote facade. Resolving inside a promise keeps a
+          // missing service a visible failure instead of a silent throw.
+          return Promise.resolve().then(() => {
+            const target = sessionRemote();
+            return target.prompt({
+              requestId,
+              sessionId,
+              mode: "queue",
+              content: [{ type: "text", text }],
+            });
           }).then(unwrap);
         },
         pin(sessionId) {
@@ -2748,10 +2884,10 @@ window.__ModuleLoader__.load({
           });
         },
         rename(sessionId, title) {
-          return remote.session.rename({ sessionId, title }).then(unwrap);
+          return Promise.resolve().then(() => sessionRemote().rename({ sessionId, title })).then(unwrap);
         },
         openInApp(path) {
-          return remote.session.openWorkspacePath({ path }).then(unwrap);
+          return Promise.resolve().then(() => sessionRemote().openWorkspacePath({ path })).then(unwrap);
         },
         archive(sessionId, stopActivity) {
           return uiWorkspace.archiveSession(sessionId, { stopActivity: stopActivity === true });
@@ -2786,7 +2922,7 @@ window.__ModuleLoader__.load({
     }
 
     exports.apply = apply;
-    exports.inject = ["slots", "locale", "layout", "remote", "sessions", "uiSession", "uiWorkspace", "workspaces"];
+    exports.inject = ["slots", "locale", "layout", "remote", "remote.session", "sessions", "uiSession", "uiWorkspace", "workspaces"];
     return module.exports;
   },
 });

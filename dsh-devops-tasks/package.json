@@ -1,6 +1,6 @@
 {
   "name": "dsh-devops-tasks",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "type": "module",
   "description": "My workbench for DSH Web: session cards (status, note, chat, locate) plus a DevOps work-item board with filters.",
